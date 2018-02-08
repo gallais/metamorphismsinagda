@@ -16,6 +16,7 @@
 %subst varid a = "\identifier{" a "}"
 %subst numeral a = "\mathbf{" a "}"
 %format : = "{:}"
+%format LETEQ = "{=}"
 %format Set = "\constructor{Set}"
 %format (GOAL(t)(i)) = "\highlight{goal}{\textbf\{\," t "\,\textbf\}_{\kern1pt" i "}}"
 %format (GOAL'(t)) = "\highlight{goal}{\textbf\{\," t "\,\textbf\}}"
@@ -561,7 +562,7 @@ fillᵢᵥ (a ∷ as                      ) | (b , s' , as' , eq) =
 \begin{code}
 fillᵢᵥ (a ∷ as(CXT(AlgList f e s))  ) with fillᵢᵥ as
 fillᵢᵥ (a ∷ as                      ) | (b , s' , as' , eq(CXT(g s ≡ (b , s')))) =
-  let (b' , a') = piece (a , b) in (b' , _ , a' ∷ as' , (GOAL(g (f a s) ≡ (b' , f a' s'))(7)))
+  let (b' , a') LETEQ piece (a , b) in (b' , _ , a' ∷ as' , (GOAL(g (f a s) ≡ (b' , f a' s'))(7)))
 \end{code}
 
 \[ \begin{tikzpicture}[x=12em,y=4em]
@@ -578,7 +579,7 @@ fillᵢᵥ (a ∷ as                      ) | (b , s' , as' , eq(CXT(g s ≡ (b 
 
 \begin{code}
 jigsaw-conditionᵢ :  {a : A} {b : B} {s s' : S} →
-                     g s ≡ (b , s') → let (b' , a') = piece (a , b) in g (f a s) ≡ (b' , f a' s')
+                     g s ≡ (b , s') → let (b' , a') LETEQ piece (a , b) in g (f a s) ≡ (b' , f a' s')
 \end{code}
 
 \subsection{Horizontal Placement}
@@ -619,7 +620,7 @@ decon (fillᵢₕ a bs) | ⟨ () ⟩
 
 \begin{code}
 decon (fillᵢₕ a bs) | b ∷⟨ eq(CXT(just (g s) ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B (just ∘ g) s')) =
-  let (b' , a') = piece (a , b) in b' ∷⟨ (GOAL(just (g (f a s)) ≡ just (b' , f a' s'))(7)) ⟩ fillᵢₕ a' bs'
+  let (b' , a') LETEQ piece (a , b) in b' ∷⟨ (GOAL(just (g (f a s)) ≡ just (b' , f a' s'))(7)) ⟩ fillᵢₕ a' bs'
 \end{code}
 
 \section{Jigsaw Metamorphisms: Possibly Finite Cases}
