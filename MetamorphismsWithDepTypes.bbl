@@ -1,0 +1,167 @@
+%%% -*-BibTeX-*-
+%%% Do NOT edit. File created by BibTeX with style
+%%% ACM-Reference-Format-Journals [18-Jan-2012].
+
+\begin{thebibliography}{9}
+
+%%% ====================================================================
+%%% NOTE TO THE USER: you can override these defaults by providing
+%%% customized versions of any of these macros before the \bibliography
+%%% command.  Each of them MUST provide its own final punctuation,
+%%% except for \shownote{}, \showDOI{}, and \showURL{}.  The latter two
+%%% do not use final punctuation, in order to avoid confusing it with
+%%% the Web address.
+%%%
+%%% To suppress output of a particular field, define its macro to expand
+%%% to an empty string, or better, \unskip, like this:
+%%%
+%%% \newcommand{\showDOI}[1]{\unskip}   % LaTeX syntax
+%%%
+%%% \def \showDOI #1{\unskip}           % plain TeX syntax
+%%%
+%%% ====================================================================
+
+\ifx \showCODEN    \undefined \def \showCODEN     #1{\unskip}     \fi
+\ifx \showDOI      \undefined \def \showDOI       #1{#1}\fi
+\ifx \showISBNx    \undefined \def \showISBNx     #1{\unskip}     \fi
+\ifx \showISBNxiii \undefined \def \showISBNxiii  #1{\unskip}     \fi
+\ifx \showISSN     \undefined \def \showISSN      #1{\unskip}     \fi
+\ifx \showLCCN     \undefined \def \showLCCN      #1{\unskip}     \fi
+\ifx \shownote     \undefined \def \shownote      #1{#1}          \fi
+\ifx \showarticletitle \undefined \def \showarticletitle #1{#1}   \fi
+\ifx \showURL      \undefined \def \showURL       {\relax}        \fi
+% The following commands are used for tagged output and should be
+% invisible to TeX
+\providecommand\bibfield[2]{#2}
+\providecommand\bibinfo[2]{#2}
+\providecommand\natexlab[1]{#1}
+\providecommand\showeprint[2][]{arXiv:#2}
+
+\bibitem[\protect\citeauthoryear{Bird and Gibbons}{Bird and Gibbons}{2003}]%
+        {Bird-arithmetic-coding}
+\bibfield{author}{\bibinfo{person}{Richard Bird} {and} \bibinfo{person}{Jeremy
+  Gibbons}.} \bibinfo{year}{2003}\natexlab{}.
+\newblock \showarticletitle{Arithmetic Coding with Folds and Unfolds}. In
+  \bibinfo{booktitle}{\emph{Advanced Functional Programming}}
+  \emph{(\bibinfo{series}{Lecture Notes in Computer Science})},
+  Vol.~\bibinfo{volume}{2638}. \bibinfo{publisher}{Springer},
+  \bibinfo{pages}{1--26}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1007/978-3-540-44833-4_1}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Gibbons}{Gibbons}{2007}]%
+        {Gibbons-metamorphisms}
+\bibfield{author}{\bibinfo{person}{Jeremy Gibbons}.}
+  \bibinfo{year}{2007}\natexlab{}.
+\newblock \showarticletitle{Metamorphisms: Streaming Representation-Changers}.
+\newblock \bibinfo{journal}{\emph{Science of Computer Programming}}
+  \bibinfo{volume}{65}, \bibinfo{number}{2} (\bibinfo{year}{2007}),
+  \bibinfo{pages}{108--139}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1016/j.scico.2006.01.006}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Ko}{Ko}{2014}]%
+        {Ko-thesis}
+\bibfield{author}{\bibinfo{person}{Hsiang-Shang Ko}.}
+  \bibinfo{year}{2014}\natexlab{}.
+\newblock \emph{\bibinfo{title}{Analysis and Synthesis of Inductive Families}}.
+\newblock {DPhil} thesis. \bibinfo{school}{University of Oxford}.
+\newblock
+\urldef\tempurl%
+\url{https://ora.ox.ac.uk/objects/ora:9019}
+\showURL{%
+\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Ko and Gibbons}{Ko and Gibbons}{2013}]%
+        {Ko-algOrn}
+\bibfield{author}{\bibinfo{person}{Hsiang-Shang Ko} {and}
+  \bibinfo{person}{Jeremy Gibbons}.} \bibinfo{year}{2013}\natexlab{}.
+\newblock \showarticletitle{Relational Algebraic Ornaments}. In
+  \bibinfo{booktitle}{\emph{Workshop on Dependently Typed Programming}}
+  \emph{(\bibinfo{series}{DTP'13})}. \bibinfo{publisher}{ACM},
+  \bibinfo{pages}{37--48}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/2502409.2502413}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{McBride}{McBride}{2011}]%
+        {McBride-ornaments}
+\bibfield{author}{\bibinfo{person}{Conor McBride}.}
+  \bibinfo{year}{2011}\natexlab{}.
+\newblock \bibinfo{title}{Ornamental Algebras, Algebraic Ornaments}.
+\newblock   (\bibinfo{year}{2011}).
+\newblock
+\urldef\tempurl%
+\url{https://personal.cis.strath.ac.uk/conor.mcbride/pub/OAAO/LitOrn.pdf}
+\showURL{%
+\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{McBride}{McBride}{2014}]%
+        {McBride-pivotal}
+\bibfield{author}{\bibinfo{person}{Conor McBride}.}
+  \bibinfo{year}{2014}\natexlab{}.
+\newblock \showarticletitle{How to Keep Your Neighbours in Order}. In
+  \bibinfo{booktitle}{\emph{International Conference on Functional
+  Programming}} \emph{(\bibinfo{series}{ICFP'14})}. \bibinfo{publisher}{ACM},
+  \bibinfo{pages}{297--309}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/2628136.2628163}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Nakano}{Nakano}{2013}]%
+        {Nakano-jigsaw}
+\bibfield{author}{\bibinfo{person}{Keisuke Nakano}.}
+  \bibinfo{year}{2013}\natexlab{}.
+\newblock \showarticletitle{Metamorphism in jigsaw}.
+\newblock \bibinfo{journal}{\emph{Journal of Functional Programming}}
+  \bibinfo{volume}{23}, \bibinfo{number}{2} (\bibinfo{year}{2013}),
+  \bibinfo{pages}{161--173}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1017/S0956796812000391}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Oliveira}{Oliveira}{2018}]%
+        {Oliveira-metaphorisms}
+\bibfield{author}{\bibinfo{person}{Jos{\'e}~Nuno Oliveira}.}
+  \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{Programming from Metaphorisms}.
+\newblock \bibinfo{journal}{\emph{Journal of Logical and Algebraic Methods in
+  Programming}}  \bibinfo{volume}{94} (\bibinfo{year}{2018}),
+  \bibinfo{pages}{15--44}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1016/j.jlamp.2017.09.003}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Thibodeau, Cave, and Pientka}{Thibodeau
+  et~al\mbox{.}}{2016}]%
+        {Thibodeau-indexed-codata-types}
+\bibfield{author}{\bibinfo{person}{David Thibodeau}, \bibinfo{person}{Andrew
+  Cave}, {and} \bibinfo{person}{Brigitte Pientka}.}
+  \bibinfo{year}{2016}\natexlab{}.
+\newblock \showarticletitle{Indexed Codata Types}. In
+  \bibinfo{booktitle}{\emph{International Conference on Functional
+  Programming}} \emph{(\bibinfo{series}{ICFP'16})}. \bibinfo{publisher}{ACM},
+  \bibinfo{pages}{351--363}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3022670.2951929}
+\showDOI{\tempurl}
+
+
+\end{thebibliography}
