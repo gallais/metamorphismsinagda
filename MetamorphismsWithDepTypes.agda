@@ -51,66 +51,67 @@ open CoalgList
 foldl-alg : {A X : Set} → (X → A → X) → A → (X → X) → (X → X)
 foldl-alg f x t = t ∘ flip f x
 
-module ConsumingBeforeProducing
-  {A B S : Set} (f : S → A → S) (g : S → Maybe (B × S))
-  where
+module _ {A B S : Set} where
 
-  cbp : {h : S → S} → AlgList A (foldl-alg f) id h → (s : S) → CoalgList B g (h s)
-  decon (cbp [] s) with g s        | inspect g s
-  decon (cbp [] s) | nothing       | [ eq ] = ⟨ eq ⟩
-  decon (cbp [] s) | just (b , s') | [ eq ] = b ∷⟨ eq ⟩ cbp [] s'
-  cbp (a ∷ as) s = cbp as (f s a)
+  module ConsumingBeforeProducing
+    (f : S → A → S) (g : S → Maybe (B × S))
+    where
 
-module Streaming
-  {A B S : Set} (f : S → A → S) (g : S → Maybe (B × S))
-  (streaming-condition :
-     {a : A} {b : B} {s s' : S} → g s ≡ just (b , s') → g (f s a) ≡ just (b , f s' a))
-  where
+    cbp : {h : S → S} → AlgList A (foldl-alg f) id h → (s : S) → CoalgList B g (h s)
+    decon (cbp [] s) with g s        | inspect g s
+    decon (cbp [] s) | nothing       | [ eq ] = ⟨ eq ⟩
+    decon (cbp [] s) | just (b , s') | [ eq ] = b ∷⟨ eq ⟩ cbp [] s'
+    cbp (a ∷ as) s = cbp as (f s a)
 
-  streaming-lemma : {b : B} {s s' : S} {h : S → S} →
-                    AlgList A (foldl-alg f) id h →
-                    g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
-  streaming-lemma []       eq = eq
-  streaming-lemma (a ∷ as) eq = streaming-lemma as (streaming-condition eq)
+  module Streaming
+    (f : S → A → S) (g : S → Maybe (B × S))
+    (streaming-condition :
+       {a : A} {b : B} {s s' : S} → g s ≡ just (b , s') → g (f s a) ≡ just (b , f s' a))
+    where
 
-  stream : {h : S → S} → AlgList A (foldl-alg f) id h → (s : S) → CoalgList B g (h s)
-  decon (stream as       s) with g s        | inspect g s
-  decon (stream []       s) | nothing       | [ eq ] = ⟨ eq ⟩
-  decon (stream (a ∷ as) s) | nothing       | [ eq ] = decon (stream as (f s a))
-  decon (stream as       s) | just (b , s') | [ eq ] = b ∷⟨ streaming-lemma as eq ⟩ stream as s'
+    streaming-lemma : {b : B} {s s' : S} {h : S → S} →
+                      AlgList A (foldl-alg f) id h → g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
+    streaming-lemma []       eq = eq
+    streaming-lemma (a ∷ as) eq = streaming-lemma as (streaming-condition eq)
 
-cong-from-just : {X : Set} {x x' : X} → (Maybe X ∋ just x) ≡ just x' → x ≡ x'
-cong-from-just refl = refl
+    stream : {h : S → S} → AlgList A (foldl-alg f) id h → (s : S) → CoalgList B g (h s)
+    decon (stream as       s) with g s        | inspect g s
+    decon (stream []       s) | nothing       | [ eq ] = ⟨ eq ⟩
+    decon (stream (a ∷ as) s) | nothing       | [ eq ] = decon (stream as (f s a))
+    decon (stream as       s) | just (b , s') | [ eq ] = b ∷⟨ streaming-lemma as eq ⟩ stream as s'
 
-module Jigsaw-Infinite
-  {A B S : Set} (f : A → S → S) (e : S) (g : S → B × S)
-  (piece : A × B → B × A)
-  (jigsaw-conditionᵢ : {a : A} {b : B} {s s' : S} →
-                       g s ≡ (b , s') →
-                       let (b' , a') = piece (a , b)
-                       in  g (f a s) ≡ (b' , f a' s'))
-  (flat-edge : B) (flat-edge-productionᵢ : g e ≡ (flat-edge , e))
-  where
+  cong-from-just : {X : Set} {x x' : X} → (Maybe X ∋ just x) ≡ just x' → x ≡ x'
+  cong-from-just refl = refl
 
-  fillᵢᵥ : {s : S} → AlgList A f e s → Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A f e t × g s ≡ (b , t)
-  fillᵢᵥ []       = flat-edge , _ , [] , flat-edge-productionᵢ
-  fillᵢᵥ (a ∷ as) with fillᵢᵥ as
-  fillᵢᵥ (a ∷ as) | b , s' , as' , eq = let (b' , a') = piece (a , b)
-                                        in  b' , _ , a' ∷ as' , jigsaw-conditionᵢ eq
+  module Jigsaw-Infinite
+    (f : A → S → S) (e : S) (g : S → B × S)
+    (piece : A × B → B × A)
+    (jigsaw-conditionᵢ : {a : A} {b : B} {s s' : S} →
+                         g s ≡ (b , s') →
+                         let (b' , a') = piece (a , b)
+                         in  g (f a s) ≡ (b' , f a' s'))
+    (flat-edge : B) (flat-edge-productionᵢ : g e ≡ (flat-edge , e))
+    where
 
-  jigsawᵢᵥ : {s : S} → AlgList A f e s → CoalgList B (just ∘ g) s
-  decon (jigsawᵢᵥ as) with fillᵢᵥ as
-  decon (jigsawᵢᵥ as) | b , _ , as' , eq = b ∷⟨ cong just eq ⟩ jigsawᵢᵥ as'
- 
-  fillᵢₕ : {s : S} (a : A) → CoalgList B (just ∘ g) s → CoalgList B (just ∘ g) (f a s)  
-  decon (fillᵢₕ a bs) with decon bs
-  decon (fillᵢₕ a bs) | ⟨ () ⟩
-  decon (fillᵢₕ a bs) | b ∷⟨ eq ⟩ bs' = let (b' , a') = piece (a , b)
-                                        in  b' ∷⟨ cong just (jigsaw-conditionᵢ (cong-from-just eq)) ⟩ fillᵢₕ a' bs'
+    fillᵢᵥ : {s : S} → AlgList A f e s → Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A f e t × g s ≡ (b , t)
+    fillᵢᵥ []       = flat-edge , _ , [] , flat-edge-productionᵢ
+    fillᵢᵥ (a ∷ as) with fillᵢᵥ as
+    fillᵢᵥ (a ∷ as) | b , _ , as' , eq = let (b' , a') = piece (a , b)
+                                         in  b' , _ , a' ∷ as' , jigsaw-conditionᵢ eq
 
-  jigsawᵢₕ : {s : S} → AlgList A f e s → CoalgList B (just ∘ g) s
-  decon (jigsawᵢₕ []) = flat-edge ∷⟨ cong just flat-edge-productionᵢ ⟩ jigsawᵢₕ []
-  jigsawᵢₕ (a ∷ as) = fillᵢₕ a (jigsawᵢₕ as)
+    jigsawᵢᵥ : {s : S} → AlgList A f e s → CoalgList B (just ∘ g) s
+    decon (jigsawᵢᵥ as) with fillᵢᵥ as
+    decon (jigsawᵢᵥ as) | b , _ , as' , eq = b ∷⟨ cong just eq ⟩ jigsawᵢᵥ as'
+   
+    fillᵢₕ : {s : S} (a : A) → CoalgList B (just ∘ g) s → CoalgList B (just ∘ g) (f a s)  
+    decon (fillᵢₕ a bs) with decon bs
+    decon (fillᵢₕ a bs) | ⟨ () ⟩
+    decon (fillᵢₕ a bs) | b ∷⟨ eq ⟩ bs' = let (b' , a') = piece (a , b)
+                                          in  b' ∷⟨ cong just (jigsaw-conditionᵢ (cong-from-just eq)) ⟩ fillᵢₕ a' bs'
+
+    jigsawᵢₕ : {s : S} → AlgList A f e s → CoalgList B (just ∘ g) s
+    decon (jigsawᵢₕ []) = flat-edge ∷⟨ cong just flat-edge-productionᵢ ⟩ jigsawᵢₕ []
+    jigsawᵢₕ (a ∷ as) = fillᵢₕ a (jigsawᵢₕ as)
 
 
 -- splitAlgList : {A X : Set} {f : ListF A X → X} {x : X} → AlgList A f x → Σ[ as ∈ List A ] foldr' f as ≡ x

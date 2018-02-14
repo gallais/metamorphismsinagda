@@ -117,6 +117,8 @@
 \newcommand{\varawa}[2]{\phantom{#1}\mathllap{#2}}
 \newcommand{\varcitet}[3][]{\citeauthor{#2}#3~[\ifthenelse{\isempty{#1}}{\citeyear{#2}}{\citeyear[#1]{#2}}]}
 
+\newcommand{\beforefigurecode}{\setlength{\mathindent}{0em}}
+
 \makeatletter\if@@ACM@@journal\makeatother
 %% Journal information (used by PACMPL format)
 %% Supplied to authors by publisher for camera-ready submission
@@ -162,7 +164,8 @@
 \setlength{\mathindent}{\parindent}
 
 %% Title information
-\title{Programming Metamorphic Algorithms (Functional Pearl)}
+\title[Programming Metamorphic Algorithms in Agda   (Functional Pearl)]
+      {Programming Metamorphic Algorithms in Agda\\ (Functional Pearl)}
                                         %% [Short Title] is optional;
                                         %% when present, will be used in
                                         %% header instead of Full Title.
@@ -192,7 +195,7 @@
 \author{Hsiang-Shang Ko}
 %\authornote{with author1 note}         %% \authornote is optional;
                                         %% can be repeated if necessary
-%\orcid{nnnn-nnnn-nnnn-nnnn}            %% \orcid is optional
+\orcid{0000-0002-2439-1048}            %% \orcid is optional
 \affiliation{
   \position{Project Researcher}
   \department{Information Systems Architecture Science Research Division}
@@ -264,7 +267,7 @@
 Why do we want to program with full dependent types?
 For larger-scale proofs, writing proof terms in a dependently typed language is usually much less efficient than working with a proof assistant with decent automation.
 What has been more successful with dependently typed programming (DTP) --- in particular with the use of indexed datatypes --- is intrinsic hygienic guarantees, which tend to work better for smaller, hand-crafted programs: if we need to, for example, track the bounds of indices or work with well-typed syntax trees, let us encode bound and typing constraints in the datatypes of indices and syntax trees so that the type system can help the programmer to enforce the constraints.
-But this is achievable with automated proof assistants, and does not make DTP truly shine --- the most fascinating aspect of DTP is the prospect that intrinsic typing can provide semantic hints to the programmer during an interactive development process, so that the heavy typing becomes a worthwhile asset rather than a unnecessary burden.
+But this is achievable with automated proof assistants, and does not make DTP truly shine --- the most fascinating aspect of DTP is the prospect that intrinsic typing can provide semantic hints to the programmer during an interactive development process, so that the heavy typing becomes a worthwhile asset rather than an unnecessary burden.
 
 \todo[inline]{In exchange for this kind of guarantee, though\ldots}
 
@@ -280,7 +283,7 @@ data List (A : Set) : Set where
 \end{code}
 
 \begin{code}
-foldr : {A X : Set} → (A → X → X) → X → List A → X
+foldr : {A S : Set} → (A → S → S) → S → List A → S
 foldr f e []        = e
 foldr f e (a ∷ as)  = f a (foldr f e as)
 \end{code}
@@ -288,9 +291,9 @@ foldr f e (a ∷ as)  = f a (foldr f e as)
 \section{Specification of Metamorphisms in Types}
 
 \begin{code}
-data AlgList (A {X} : Set) (f : A → X → X) (e : X) : X → Set where
+data AlgList (A {S} : Set) (f : A → S → S) (e : S) : S → Set where
   []   : AlgList A f e e
-  _∷_  : ∀ {x} → (a : A) → AlgList A f e x → AlgList A f e (f a x)
+  _∷_  : (a : A) → {s : S} → AlgList A f e s → AlgList A f e (f a s)
 \end{code}
 
 \citet{McBride-ornaments}
@@ -309,32 +312,34 @@ mutual
 \end{code}
 
 \begin{code}
-unfoldr : {B X : Set} → (X → Maybe (B × X)) → X → CoList B
-decon (unfoldr g x) with g x
-decon (unfoldr g x) | nothing        = []
-decon (unfoldr g x) | just (b , x')  = b ∷ unfoldr g x'
+unfoldr : {B S : Set} → (S → Maybe (B × S)) → S → CoList B
+decon (unfoldr g s) with g s
+decon (unfoldr g s) | nothing        = []
+decon (unfoldr g s) | just (b , s')  = b ∷ unfoldr g s'
 \end{code}
 
 \begin{code}
 mutual
 
-  record CoalgList (B {X} : Set) (g : X → Maybe (B × X)) (x : X) : Set where
+  record CoalgList (B {S} : Set) (g : S → Maybe (B × S)) (s : S) : Set where
     coinductive
     field
-      decon : CoalgListF B g x
+      decon : CoalgListF B g s
 
-  data CoalgListF (B {X} : Set) (g : X → Maybe (B × X)) : X → Set where
-    ⟨_⟩     : ∀ {x} → g x ≡ nothing → CoalgListF B g x
-    _∷⟨_⟩_  : ∀ {x x'} → (b : B) → g x ≡ just (b , x') → CoalgList B g x' → CoalgListF B g x
+  data CoalgListF (B {S} : Set) (g : S → Maybe (B × S)) : S → Set where
+    ⟨_⟩     : {s : S} → g s ≡ nothing → CoalgListF B g s
+    _∷⟨_⟩_  : (b : B) → {s s' : S} → g s ≡ just (b , s') → CoalgList B g s' → CoalgListF B g s
 \end{code}
 
 The |foldr| version, and then the |foldl| version.
 
-Let |A|, |B|, |S : Set| throughout the rest of this paper.
+Let |A|, |B|, |S : Set| throughout the rest of this paper.%
+\footnote{That is, think of the code in the rest of this paper as contained in a module with parameters |A|, |B|, |S : Set|.}
 
 \section{Definitional Implementation of Metamorphisms}
+\label{sec:cbp}
 
-Let |f : S → A → S| and |g : S → Maybe (B × S)| throughout this section and the next.
+Let |f : S → A → S| and |g : S → Maybe (B × S)|.
 
 \todo[inline]{This exposes the state, which can participate in the computation.}
 
@@ -343,14 +348,16 @@ As a sanity check, we start from the most straightforward algorithm that strictl
 cbp : {h : S → S} → AlgList A (foldl-alg f) id h → (s : S) → CoalgList B g (h s)
 cbp as s = (GOAL(CoalgList B g (h s))(0))
 \end{code}
-The \highlight{goal}{\text{green-shaded part}} is an \emph{interaction point} or a \emph{goal}, which is a hole in the program to be filled in.%
-\todo{more explanation}\
+The \highlight{goal}{\text{green-shaded part}} is an \emph{interaction point} or a \emph{goal}, which is a hole in the program to be completed.%
+\todo{more explanation}
+
 We are trying to consume the input list first, so we pattern match on the argument |as| to see if there is anything to consume:
 \begin{code}
 cbp []        s = (GOAL(CoalgList B g s)(1))
 cbp (a ∷ as)  s = (GOAL(CoalgList B g (h' (f s a)))(2))
 \end{code}
-If there is, we go into Goal~2, where we keep consuming the tail |as| but from a new state:
+
+If there is something to consume, that is, the input list is non-empty, we go into Goal~2, where we keep consuming the tail |as| but from a new state:
 \begin{code}
 cbp (a ∷ as) s = cbp as (GOAL(S)(3))
 \end{code}
@@ -359,7 +366,8 @@ What is this new state? It should be the one obtained by merging~|a| into~|s|, i
 \begin{code}
 cbp (a ∷ as) s = cbp as (f s a)
 \end{code}
-If the input list is empty (that is, there is nothing more to consume), we go into Goal~1, where we should produce the output co-list, to specify which we should say what will result if we observe/|decon|struct the co-list:
+
+If there is nothing more to consume, that is, the input list is empty, we go into Goal~1, where we should produce the output co-list, to specify which we should say what will result if we observe/|decon|struct the co-list:
 \begin{code}
 decon (cbp [] s) = (GOAL(CoalgListF B g s)(4))
 \end{code}
@@ -376,34 +384,53 @@ decon (cbp [] s) with g s
 decon (cbp [] s) | nothing        = ⟨ (GOAL(g s ≡ nothing)(7)) ⟩
 decon (cbp [] s) | just (b , s')  = b ∷⟨ (GOAL(g s ≡ just (b , s'))(8)) ⟩ cbp [] s'
 \end{code}
+
 We are now required to discharge equality proof obligations about |g s|, and the obligations exactly correspond to the results of the |with|-matching.
 This is precisely a situation in which the |inspect| idiom of the \Agda\ standard library can help: with |inspect|, we can obtain an equality proof of the right type in each of the cases of the |with|-matching.
 We therefore obtain:
 \begin{code}
-cbp : {h : S → S} → AlgList A (foldl-alg f) id h → (s : S) → CoalgList B g (h s)
 decon (cbp [] s) with g s         | inspect g s
-decon (cbp [] s) | nothing        | [ eq(CXT(g s ≡ nothing))        ] = ⟨ eq ⟩
-decon (cbp [] s) | just (b , s')  | [ eq(CXT(g s ≡ just (b , s')))  ] = b ∷⟨ eq ⟩ cbp [] s'
-cbp (a ∷ as) s = cbp as (f s a)
+decon (cbp [] s) | nothing        | [ eq(CXT(g s ≡ nothing))        ] = ⟨ (GOAL(g s ≡ nothing)(7)) ⟩
+decon (cbp [] s) | just (b , s')  | [ eq(CXT(g s ≡ just (b , s')))  ] = b ∷⟨ (GOAL(g s ≡ just (b , s'))(8)) ⟩ cbp [] s'
 \end{code}
 where, in each case of the |with|-matching, we annotate |eq| with its type in \highlight{cxt}{\text{yellow-shaded subscript}} (which is not part of the program text).
 \todo[inline]{Expected, even boring, typical type-directed programming}
 
+\begin{figure}
+\beforefigurecode
+\begin{code}
+module ConsumingBeforeProducing
+  (f : S → A → S) (g : S → Maybe (B × S))
+  where
+
+  cbp : {h : S → S} → AlgList A (foldl-alg f) id h → (s : S) → CoalgList B g (h s)
+  decon (cbp [] s) with g s         | inspect g s
+  decon (cbp [] s) | nothing        | [ eq ] = ⟨ eq ⟩
+  decon (cbp [] s) | just (b , s')  | [ eq ] = b ∷⟨ eq ⟩ cbp [] s'
+  cbp (a ∷ as) s = cbp as (f s a)
+\end{code}
+\caption{Definitional implementation of metamorphisms}
+\label{fig:cbp}
+\end{figure}
+
 \section{Streaming Metamorphisms}
 
-As \citet{Gibbons-metamorphisms} noted, (list) metamorphisms in general cannot be automatically optimised in terms of time and space, but under certain conditions it is possible to refine a list metamorphism to a \emph{streaming algorithm} --- which can produce an initial segment of the output list without consuming all of the input list.
-
+As \citet{Gibbons-metamorphisms} noted, (list) metamorphisms in general cannot be automatically optimised in terms of time and space, but under certain conditions it is possible to refine a list metamorphism to a \emph{streaming algorithm} --- which can produce an initial segment of the output list without consuming all of the input list.%
+\todo{\ldots}\
+Again let |f : S → A → S| and |g : S → Maybe (B × S)|.
 We implement a different algorithm with the same type:
 \begin{code}
 stream : {h : S → S} → AlgList A (foldl-alg f) id h → (s : S) → CoalgList B g (h s)
 stream as s = (GOAL(CoalgList B g (h s))(0))
 \end{code}
-Different from |cbp|, this time we try to produce using~|g| whenever possible, so our first step is to pattern match on |g s| (and we are also introducing |decon| and |inspect|, which will be needed like in |cbp|):
+
+Different from |cbp| (\autoref{sec:cbp}/\autoref{fig:cbp}), this time we try to produce using~|g| whenever possible, so our first step is to pattern match on |g s| (and we are also introducing |decon| and |inspect|, which will be needed like in |cbp|):
 \begin{code}
 decon (stream as s) with g s         | inspect g s
 decon (stream as s) | nothing        | [ eq ] = (GOAL(CoalgListF B g (h s))(1))
 decon (stream as s) | just (b , s')  | [ eq ] = (GOAL(CoalgListF B g (h s))(2))
 \end{code}
+
 For Goal~1, we cannot produce anything since |g s| is |nothing|, but this does not mean that the output co-list is empty --- we may be able to produce something once we consume the input list and advance to a new state.
 We therefore pattern match on the input list:
 \begin{code}
@@ -416,10 +443,11 @@ At Goal~3, there is nothing more in the input list to consume, so we should end 
 decon (stream []        s) | nothing | [ eq ] = ⟨ eq ⟩
 decon (stream (a ∷ as)  s) | nothing | [ eq ] = decon (stream as (f s a))
 \end{code}
+
 Goal~2 is the interesting case.
 Using~|g|, from the current state~|s| we can produce~|b|, which we set as the head of the output co-list, and advance to a new state~|s'|, from which we produce the tail of the co-list:
 \begin{code}
-decon (stream as s) | just (b , s') | [ eq(CXT(g s ≡ just (b , s'))) ] =
+decon (stream as(CXT(AlgList A (foldl-alg f) id h)) s) | just (b , s') | [ eq(CXT(g s ≡ just (b , s'))) ] =
   b ∷⟨ (GOAL(g (h s) ≡ just (b , h s'))(5)) ⟩ stream as s'
 \end{code}
 Now we get a non-trivial proof obligation (Goal~5) --- what does it mean?
@@ -436,7 +464,7 @@ Drawing this as a state transition diagram:
 \draw[serif cm-to] (hx) edge node(u)[right]{\rlap{produce~|b| with~|g|}} (hx ||- hx'.north);
 %\node at ($(t)!0.5!(u)$) [anchor=center] {$\Rightarrow$};
 \end{tikzpicture} \]
-We already have in the context a similar-looking equality proof, namely~|eq|, which we can superimpose on the diagram:
+We already have in the context a similar-looking equality, namely |eq : g s ≡ just (b , s')|, which we can superimpose on the diagram:
 \[ \begin{tikzpicture}[x=12em,y=4em]
 \node(x) [anchor=center] {|s|};
 \node(x') [below=1 of x,anchor=center] {|s'|};
@@ -465,12 +493,14 @@ This is a kind of commutativity of production and consumption:
 From the initial state~|s|, we can either
 \begin{itemize}
 \item apply~|g| to~|s| to \emph{produce}~|b| and reach a new state~|s'|, and then apply~|h| to \emph{consume} the list and update the state to~|h s'|, or
-\item apply~|h| to \emph{consume} the list and update the state to~|h s|, and then apply~|g| to~|h s| to \emph{produce} an element and reach a new state.
+\item apply~|h| to~|s| to \emph{consume} the list and update the state to~|h s|, and then apply~|g| to~|h s| to \emph{produce} an element and reach a new state.
 \end{itemize}
 If the first route is possible, the second route should also be possible, and the outcomes should be the same --- doing production using~|g| and consumption using~|h| in whichever order should emit the same element and reach the same final state.
 This cannot be true in general, and should be formulated as a condition of the streaming algorithm.
-However, this commutativity of |g|~and~|h| looks more like a derived consequence rather than a basic condition ---
-it is commutativity of one step of production (using~|g|) and multiple steps of consumption (of the entire list, using~|h|), whereas the algorithm is specified in terms of |g|~and~|f|, which are single-step production and consumption, and it is more natural to require that |g|~and~|f| commute instead:
+
+The above commutativity of |g|~and~|h| looks more like a derived consequence rather than a basic condition, though ---
+it is commutativity of one step of production (using~|g|) and multiple steps of consumption (of the entire list, using~|h|), whereas the algorithm is specified in terms of |g|~and~|f|, which are single-step production and consumption.
+Hence it is more natural to require that |g|~and~|f| commute instead:
 \[ \begin{tikzpicture}[x=12em,y=4em]
 \node(x) [anchor=center] {|s|};
 \node(x') [below=1 of x,anchor=center] {|s'|};
@@ -485,31 +515,50 @@ it is commutativity of one step of production (using~|g|) and multiple steps of 
 This is \varcitet{Gibbons-metamorphisms}{'s} \emph{streaming condition}, which is needed for proving the correctness of the streaming algorithm.
 In our development of |stream|, we can assume that a proof of the streaming condition is available:
 \begin{code}
-streaming-condition :
-  {a : A} {b : B} {s s' : S} → g s ≡ just (b , s') → g (f s a) ≡ just (b , f s' a)
+streaming-condition :  {a : A} {b : B} {s s' : S} →
+                       g s ≡ just (b , s') → g (f s a) ≡ just (b , f s' a)
 \end{code}
+
 Back to Goal~5, where we should prove the commutativity of |g|~and~|h|.
-All it takes should be a straightforward induction to extend the streaming condition along the axis of consumption --- so straightforward that \Agda\ can do most of the work for us!
+All it takes should be a straightforward induction to extend the streaming condition along the axis of consumption --- so straightforward, in fact, that \Agda\ can do most of the work for us!
 We know that we need a helper function |streaming-lemma| that performs induction on |as| and uses |eq| as a premise; by filling |streaming-lemma as eq| into Goal~5 and firing a command (\texttt{C-c C-h}), \Agda\ can generate a type for |streaming-lemma|, which, after removing some over-generalisations and unnecessary definition expansions, is:
 \begin{code}
 streaming-lemma :  {b : B} {s s' : S} {h : S → S} →
                    AlgList A (foldl-alg f) id h → g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
 streaming-lemma as eq = (GOAL(g (h s) ≡ just (b , h s'))(6))
 \end{code}
-\Agda\ then accepts |streaming-lemma as eq| as a type-correct term for Goal~5, completing the definition of |stream|:
-\begin{code}
-stream : {h : S → S} → AlgList A (foldl-alg f) id h → (s : S) → CoalgList B g (h s)
-decon (stream as        s) with g s         | inspect g s
-decon (stream []        s) | nothing        | [ eq ] = ⟨ eq ⟩
-decon (stream (a ∷ as)  s) | nothing        | [ eq ] = decon (stream as (f s a))
-decon (stream as        s) | just (b , s')  | [ eq ] = b ∷⟨ streaming-lemma as eq ⟩ stream as s'
-\end{code}
+\Agda\ then accepts |streaming-lemma as eq| as a type-correct term for Goal~5, completing the definition of |stream|.
+
 Now all that is left is the body of |streaming-lemma| (Goal~6).
 If we give a hint that case-splitting is needed (\texttt{-c}), Auto can complete the definition of |streaming-lemma| on its own, yielding (modulo one cosmetic variable renaming):
 \begin{code}
 streaming-lemma []        eq = eq
 streaming-lemma (a ∷ as)  eq = streaming-lemma as (streaming-condition eq)
 \end{code}
+
+\begin{figure}
+\beforefigurecode
+\begin{code}
+module Streaming
+  (f : S → A → S) (g : S → Maybe (B × S))
+  (streaming-condition :  {a : A} {b : B} {s s' : S} →
+                          g s ≡ just (b , s') → g (f s a) ≡ just (b , f s' a))
+  where
+
+  streaming-lemma :  {b : B} {s s' : S} {h : S → S} →
+                     AlgList A (foldl-alg f) id h → g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
+  streaming-lemma []        eq = eq
+  streaming-lemma (a ∷ as)  eq = streaming-lemma as (streaming-condition eq)
+
+  stream : {h : S → S} → AlgList A (foldl-alg f) id h → (s : S) → CoalgList B g (h s)
+  decon (stream as        s) with g s         | inspect g s
+  decon (stream []        s) | nothing        | [ eq ] = ⟨ eq ⟩
+  decon (stream (a ∷ as)  s) | nothing        | [ eq ] = decon (stream as (f s a))
+  decon (stream as        s) | just (b , s')  | [ eq ] = b ∷⟨ streaming-lemma as eq ⟩ stream as s'
+\end{code}
+\caption{Streaming metamorphisms}
+\label{fig:stream}
+\end{figure}
 
 \section{Jigsaw Metamorphisms: Infinite Cases}
 
@@ -623,9 +672,47 @@ decon (fillᵢₕ a bs) | b ∷⟨ eq(CXT(just (g s) ≡ just (b , s'))) ⟩ bs'
   let (b' , a') LETEQ piece (a , b) in b' ∷⟨ (GOAL(just (g (f a s)) ≡ just (b' , f a' s'))(7)) ⟩ fillᵢₕ a' bs'
 \end{code}
 
+\begin{figure}
+\beforefigurecode
+\begin{code}
+module Jigsaw-Infinite
+  (f : A → S → S) (e : S) (g : S → B × S)
+  (piece : A × B → B × A)
+  (jigsaw-conditionᵢ :  {a : A} {b : B} {s s' : S} →
+                        g s ≡ (b , s') → let (b' , a') LETEQ piece (a , b) in g (f a s) ≡ (b' , f a' s'))
+  (flat-edge : B) (flat-edge-productionᵢ : g e ≡ (flat-edge , e))
+  where
+
+  fillᵢᵥ : {s : S} → AlgList A f e s → Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A f e t × g s ≡ (b , t)
+  fillᵢᵥ [] = flat-edge , _ , [] , flat-edge-productionᵢ
+  fillᵢᵥ (a ∷ as) with fillᵢᵥ as
+  fillᵢᵥ (a ∷ as) | b , _ , as' , eq =  let  (b' , a') LETEQ piece (a , b)
+                                        in   b' , _ , a' ∷ as' , jigsaw-conditionᵢ eq
+
+  jigsawᵢᵥ : {s : S} → AlgList A f e s → CoalgList B (just ∘ g) s
+  decon (jigsawᵢᵥ as) with fillᵢᵥ as
+  decon (jigsawᵢᵥ as) | b , _ , as' , eq = b ∷⟨ cong just eq ⟩ jigsawᵢᵥ as'
+
+  fillᵢₕ : {s : S} (a : A) → CoalgList B (just ∘ g) s → CoalgList B (just ∘ g) (f a s)  
+  decon (fillᵢₕ a bs) with decon bs
+  decon (fillᵢₕ a bs) | ⟨ () ⟩
+  decon (fillᵢₕ a bs) | b ∷⟨ eq ⟩ bs' =
+    let  (b' , a') LETEQ piece (a , b)
+    in   b' ∷⟨ cong just (jigsaw-conditionᵢ (cong-from-just eq)) ⟩ fillᵢₕ a' bs'
+
+  jigsawᵢₕ : {s : S} → AlgList A f e s → CoalgList B (just ∘ g) s
+  decon (jigsawᵢₕ []) = flat-edge ∷⟨ cong just flat-edge-productionᵢ ⟩ jigsawᵢₕ []
+  jigsawᵢₕ (a ∷ as) = fillᵢₕ a (jigsawᵢₕ as)
+\end{code}
+\caption{Infinite jigsaw metamorphisms}
+\label{fig:jigsaw-infinite}
+\end{figure}
+
 \section{Jigsaw Metamorphisms: Possibly Finite Cases}
 
 \section{Discussion}
+
+Faithful documentation of actual developments (except that\ldots)
 
 Asymmetric treatment of index equality of |AlgList| and |CoalgList|; ``green slime''~\citep{McBride-pivotal}; |AlgList| specialises the context, which is propagated into |CoalgList|, forming proof obligations.
 
@@ -657,7 +744,7 @@ Generality? Perhaps not much. For example, ``metaphorisms''~\citep{Oliveira-meta
   %% \grantnum[<url>]{<sponsorID>}{<number>} should be used to
   %% acknowledge financial support and will be used by metadata
   %% extraction tools.
-Jeremy Gibbons and Shin-Cheng Mu for discussions in Oxford.
+The author thanks Shin-Cheng Mu and Jeremy Gibbons for the discussions during and after ICFP 2017 in Oxford.
 This work originated from the author's DPhil work at Oxford~\citep{Ko-thesis}, which was supported by a University of Oxford Clarendon Scholarship and the UK Engineering and Physical Sciences Research Council (EPSRC) project \textit{Reusability and Dependent Types}.
 After the author moved to NII, the work continued with the support of the \grantsponsor{GS501100001691}{Japan Society for the Promotion of Science}{https://doi.org/10.13039/501100001691} (JSPS) Grant-in-Aid for Scientific Research (A)~No.~\grantnum{GS501100001691}{25240009} and (S)~No.~\grantnum{GS501100001691}{17H06099}.
 \end{acks}
