@@ -716,7 +716,7 @@ Faithful documentation of actual developments (except that\ldots)
 
 Asymmetric treatment of index equality of |AlgList| and |CoalgList|; ``green slime''~\citep{McBride-pivotal}; |AlgList| specialises the context, which is propagated into |CoalgList|, forming proof obligations.
 
-\citet{McBride-pivotal} tries to hide the proofs; we try to use the proofs.
+Work with proofs, not hide them \citep{McBride-pivotal}.
 
 |CoalgList B g| is interesting when its elements are actually computed by mechanisms other than~|g|.
 Index-level order of computation may differ from the data-level order (traditional vs index-first inductive families; there is probably a similar story for coinductive families).
