@@ -18,10 +18,15 @@
 %format : = "{:}"
 %format LETEQ = "{=}"
 %format Set = "\constructor{Set}"
+%format DOT = ".\kern-3pt"
 %format (GOAL(t)(i)) = "\highlight{goal}{\textbf\{\," t "\,\textbf\}_{\kern1pt" i "}}"
 %format (GOAL'(t)) = "\highlight{goal}{\textbf\{\," t "\,\textbf\}}"
 %format (CXT(t)) = "\kern-2pt_{\highlight{cxt}{" t "}}"
 
+%format Rational = "\mathbb{Q}"
+%format if = "\keyword{if}"
+%format then = "\keyword{then}"
+%format else = "\keyword{else}"
 %format refl = "\constructor{refl}"
 %format × = "{×}"
 %format , = "\kern-1pt,"
@@ -49,6 +54,8 @@
 %format jigsaw-conditionᵢ = "\identifier{jigsaw-condition_\mathrm{\,I}}"
 %format jigsawᵢₕ = "\identifier{jigsaw_\mathrm{\,IH}}"
 %format fillᵢₕ = "\identifier{fill_\mathrm{\,IH}}"
+%format jigsawₕ = "\identifier{jigsaw_\mathrm{\,H}}"
+%format fillₕ = "\identifier{fill_\mathrm{\,H}}"
 
 \newcommand{\token}[1]{{\operatorname{\mathcode`\'="8000 #1}}}
 \newcommand{\keyword}[1]{\token{\mathbf{#1}}}
@@ -79,6 +86,7 @@
                         %% http://ctan.org/pkg/subcaption
 
 \usepackage{mathtools}
+\usepackage{nicefrac}
 \usepackage{enumitem}
 \usepackage{xifthen}
 \usepackage[UKenglish]{isodate}
@@ -288,16 +296,6 @@ foldr f e []        = e
 foldr f e (a ∷ as)  = f a (foldr f e as)
 \end{code}
 
-\section{Specification of Metamorphisms in Types}
-
-\begin{code}
-data AlgList (A {S} : Set) (f : A → S → S) (e : S) : S → Set where
-  []   : AlgList A f e e
-  _∷_  : (a : A) → {s : S} → AlgList A f e s → AlgList A f e (f a s)
-\end{code}
-
-\citet{McBride-ornaments}
-
 \begin{code}
 mutual
 
@@ -317,6 +315,27 @@ decon (unfoldr g s) with g s
 decon (unfoldr g s) | nothing        = []
 decon (unfoldr g s) | just (b , s')  = b ∷ unfoldr g s'
 \end{code}
+
+|b_i|, |b_o : Rational|, |(v , w_i , w_o) : Rational × Rational × Rational|, |init-state = ({-"0\;"-} , {-"\nicefrac{1}{\identifier{b_i}}\;"-} , {-"\;\nicefrac{1}{\identifier{b_o}}"-})|
+
+\begin{code}
+f (v , w_i , w_o) d = ({-"v + d \times w_i\;"-} , {-"\nicefrac{w_i}{b_i}\;"-}, w_o)
+\end{code}
+
+\begin{code}
+g (v , w_i , w_o) =  let  d  LETEQ {-"\;\lfloor\nicefrac{\identifier{v}\kern1pt}{\identifier{w_o}}\rfloor"-}; r  LETEQ {-"\;\identifier{v} - d \times \identifier{w_o}"-}
+                     in   if {-"\identifier{v} > 0 \,\mathrel\wedge\, r + \identifier{b_i} \times \identifier{w_i} \leq \identifier{w_o}\;"-} then  just (d , (r , w_i , {-"\;\nicefrac{\identifier{w_o}\kern1pt}{\identifier{b_o}}"-})) else  nothing
+\end{code}
+
+\section{Specification of Metamorphisms in Types}
+
+\begin{code}
+data AlgList (A {S} : Set) (f : A → S → S) (e : S) : S → Set where
+  []   : AlgList A f e e
+  _∷_  : (a : A) → {s : S} → AlgList A f e s → AlgList A f e (f a s)
+\end{code}
+
+\citet{McBride-ornaments}
 
 \begin{code}
 mutual
@@ -657,7 +676,7 @@ fillᵢₕ a bs = (GOAL(CoalgList B (just ∘ g) (f a s))(4))
 \end{code}
 
 \begin{code}
-decon (fillᵢₕ a bs) with decon bs
+decon (fillᵢₕ a bs(CXT(CoalgList B (just ∘ g) s))) with decon bs
 decon (fillᵢₕ a bs) | ⟨ eq(CXT(just (g s) ≡ nothing)) ⟩ = (GOAL(CoalgListF B (just ∘ g) (f a s))(5))
 decon (fillᵢₕ a bs) | b ∷⟨ eq(CXT(just (g s) ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B (just ∘ g) s')) =
   (GOAL(CoalgListF B (just ∘ g) (f a s))(6))
@@ -708,7 +727,36 @@ module Jigsaw-Infinite
 \label{fig:jigsaw-infinite}
 \end{figure}
 
-\section{Jigsaw Metamorphisms: Possibly Finite Cases}
+\section{Jigsaw Metamorphisms: General (Possibly Finite) Cases}
+
+\subsection{Horizontal Placement}
+
+\begin{code}
+jigsawₕ : {s : S} → AlgList A f e s → CoalgList B g s
+jigsawₕ as = (GOAL(CoalgList B g DOT s)(0))
+\end{code}
+
+\begin{code}
+jigsawₕ []                              = (GOAL(CoalgList B g e)(1))
+jigsawₕ (a ∷ as(CXT(AlgList A f e s)))  = (GOAL(CoalgList B g (f a s))(2))
+\end{code}
+
+\begin{code}
+decon (jigsawₕ []) = ⟨ (GOAL(g e ≡ nothing)(3)) ⟩
+\end{code}
+
+|end-of-production : g e ≡ nothing|
+
+\begin{code}
+jigsawₕ (a ∷ as) = fillₕ a (jigsawₕ as)
+\end{code}
+
+\begin{code}
+fillₕ : {s : S} (a : A) → CoalgList B g s → CoalgList B g (f a s)
+decon (fillₕ a bs(CXT(CoalgList B g s))) with decon bs
+decon (fillₕ a bs) | ⟨ eq(CXT(g s ≡ nothing)) ⟩ = (GOAL(CoalgListF B g (f a s))(4))
+decon (fillₕ a bs) | b ∷⟨ eq(CXT(g s ≡ just (b , s')) ⟩ bs'(CXT(CoalgList B g s')) = (GOAL(CoalgListF B g (f a s))(5))
+\end{code}
 
 \section{Discussion}
 
@@ -731,7 +779,7 @@ The structure of |stream| already matches that of \citeauthor{Bird-arithmetic-co
 
 Intermediate variable conjecture (comparison with extrinsic proofs)
 
-Contrast with verification condition extraction
+Contrast with verification condition extraction; possibility to stop nonsensical program development early, which is not possible with extrinsic development
 
 Extensional properties vs intensional design
 

@@ -1,0 +1,58 @@
+This is BibTeX, Version 0.99d (TeX Live 2016)
+Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
+The top-level auxiliary file: MetamorphismsInAgda.aux
+The style file: ACM-Reference-Format.bst
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated wiz_functions (elt_size=4) to 6000 items from 3000.
+Database file #1: ../bib.bib
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated glb_str_ptr (elt_size=4) to 20 items from 10.
+Reallocated global_strs (elt_size=20001) to 20 items from 10.
+Reallocated glb_str_end (elt_size=4) to 20 items from 10.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Warning--empty address in Bird-arithmetic-coding
+Warning--empty address in Ko-algOrn
+Warning--empty address in McBride-pivotal
+Warning--empty address in Thibodeau-indexed-codata-types
+You've used 9 entries,
+            5733 wiz_defined-function locations,
+            1368 strings with 16028 characters,
+and the built_in function-call counts, 10061 in all, are:
+= -- 1297
+> -- 237
+< -- 0
++ -- 69
+- -- 92
+* -- 613
+:= -- 968
+add.period$ -- 46
+call.type$ -- 9
+change.case$ -- 49
+chr.to.int$ -- 9
+cite$ -- 13
+duplicate$ -- 959
+empty$ -- 671
+format.name$ -- 104
+if$ -- 2435
+int.to.chr$ -- 2
+int.to.str$ -- 1
+missing$ -- 32
+newline$ -- 137
+num.names$ -- 72
+pop$ -- 316
+preamble$ -- 1
+purify$ -- 130
+quote$ -- 0
+skip$ -- 347
+stack$ -- 0
+substring$ -- 810
+swap$ -- 102
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 228
+warning$ -- 4
+while$ -- 82
+width$ -- 0
+write$ -- 226
+(There were 4 warnings)

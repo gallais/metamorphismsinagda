@@ -113,6 +113,20 @@ module _ {A B S : Set} where
     decon (jigsawᵢₕ []) = flat-edge ∷⟨ cong just flat-edge-productionᵢ ⟩ jigsawᵢₕ []
     jigsawᵢₕ (a ∷ as) = fillᵢₕ a (jigsawᵢₕ as)
 
+  module Jigsaw-Possibly-Finite
+    (f : A → S → S) (e : S) (g : S → Maybe (B × S))
+    (end-of-production : g e ≡ nothing)
+    (piece : A × B → B × A)
+    where
+
+    fillₕ : {s : S} (a : A) → CoalgList B g s → CoalgList B g (f a s)
+    decon (fillₕ a bs) with decon bs
+    decon (fillₕ a bs) | ⟨ eq ⟩ = {!!}
+    decon (fillₕ a bs) | b ∷⟨ eq ⟩ bs' = {!!}
+
+    jigsawₕ : {s : S} → AlgList A f e s → CoalgList B g s
+    decon (jigsawₕ []) = ⟨ end-of-production ⟩
+    jigsawₕ (a ∷ as) = fillₕ a (jigsawₕ as)
 
 -- splitAlgList : {A X : Set} {f : ListF A X → X} {x : X} → AlgList A f x → Σ[ as ∈ List A ] foldr' f as ≡ x
 -- splitAlgList         []       = [] , refl
