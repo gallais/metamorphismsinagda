@@ -25,7 +25,7 @@
 
 %format Rational = "\mathbb{Q}"
 %format Nat = "\mathbb{N}"
-%format S_B = "S_\mathrm{\kern1ptB}"
+%format S_B = "S_\mathrm{\kern.5ptB}"
 %format f_B = "f_\mathrm{\kern1ptB}"
 %format g_B = "g_\mathrm{\kern1ptB}"
 %format init_B = "\identifier{init}_\mathrm{B}"
@@ -308,7 +308,7 @@ data List (A : Set) : Set where
   []   : List A
   _∷_  : A → List A → List A
 \end{code}
-The |foldr| operator subsumes the elements of a list into a state using a ``right algebra'' |f : A → S → S| and an initial state |e : S|:
+The |foldr| operator subsumes the elements (of type~|A|) of a list into a state (of type~|S|) using a ``right algebra'' |f : A → S → S| and an initial state |e : S|:
 \begin{code}
 foldr : {A S : Set} → (A → S → S) → S → List A → S
 foldr f e []        = e
@@ -360,7 +360,7 @@ To be more concrete, let us describe our two examples, base conversion for fract
 Suppose that the input and output bases are |b_i : Nat| and |b_o : Nat| --- in $0.625_{10} = 0.101_2$, for example, $b_i = 10$ and $b_o = 2$.
 We represent fractions as (co)lists of digits (of type~|Nat|) starting from the most significant digit --- for example, $0.625$ is represented as |{-"6\;"-} ∷ {-"2\;"-} ∷ {-"5\;"-} ∷ []|.
 To make the story short later,%
-\footnote{\citet{Gibbons-metamorphisms} gives a longer story, where base conversion for fractions is first described as a right metamorphism with a simpler state type, and then transformed to a left metamorphism.}
+\footnote{\citet{Gibbons-metamorphisms} gives a more complete story, where base conversion for fractions is first described as a right metamorphism with simple states (consisting of only an accumulator), and then transformed to a left metamorphism with more complex states.}
 we describe base conversion for fractions as a left metamorphism:
 \begin{code}
 unfoldr g_B ∘ foldl f_B init_B
@@ -377,9 +377,9 @@ while the right coalgebra~|g_B| produces an output digit and updates the accumul
 g_B (v , w_i , w_o) =  let  d  LETEQ {-"\;\lfloor\nicefrac{\identifier{v}\kern1pt}{\identifier{w_o}}\rfloor"-}; r  LETEQ {-"\;\identifier{v} - d \times \identifier{w_o}"-}
                        in   if {-"\identifier{v} > 0\;"-} then  just (d , (r , w_i , {-"\;\nicefrac{\identifier{w_o}\kern1pt}{\identifier{b_o}}"-})) else  nothing
 \end{code}
-For the example $0.625_{10} = 0.101_2$, the metamorphism first consumes the input digits:
+For the example $0.625_{10} = 0.101_2$, the metamorphism first consumes the input digits using~|f_B|:
 \[ (0\,,\;0.1\,,\;0.5) ~\stackrel{6}{\mapsto}~ (0.6\,,\;0.01\,,\;0.5) ~\stackrel{2}{\mapsto}~ (0.62\,,\;0.001\,,\;0.5) ~\stackrel{5}{\mapsto}~ (0.625\,,\;0.0001\,,\;0.5) \]
-and then continues to produce the output digits:
+and then produces the output digits using~|g_B|:
 \[ (0.625\,,\;10^{-4}\,,\;0.5) ~\stackrel{1}{\mapsto}~ (0.125\,,\;10^{-4}\,,\;0.25) ~\stackrel{0}{\mapsto}~ (0.125\,,\;10^{-4}\,,\;0.125) ~\stackrel{1}{\mapsto}~ (0\,,\;10^{-4}\,,\;0.0625) ~\not\mapsto \]
 
 \varparagraph{Heapsort.}
@@ -391,7 +391,7 @@ push    : Val → Heap → Heap
 popMin  : Heap → Maybe (Val × Heap)
 \end{code}
 where |empty| is the empty heap, |push| adds a value into a heap, and |popMin| returns the minimum element and the rest of the input heap if and only if the input heap is non-empty.
-Then heapsort is a right metamorphism:
+Then heapsort can be directly described as a right metamorphism:
 \begin{code}
 unfoldr popMin ∘ foldr push empty
 \end{code}
