@@ -1,9 +1,9 @@
 %% For double-blind review submission
-%\documentclass[acmsmall,10pt,fleqn,review,anonymous]{acmart}\settopmatter{printfolios=true}
+%\documentclass[acmsmall,review,anonymous]{acmart}\settopmatter{printfolios=true}
 %% For single-blind review submission
-\documentclass[acmsmall,10pt,review]{acmart}\settopmatter{printfolios=true}
+\documentclass[acmsmall,review]{acmart}\settopmatter{printfolios=true}
 %% For final camera-ready submission
-%\documentclass[acmsmall,10pt,fleqn]{acmart}\settopmatter{}
+%\documentclass[acmsmall]{acmart}\settopmatter{}
 
 %% Note: Authors migrating a paper from PACMPL format to traditional
 %% SIGPLAN proceedings format should change 'acmlarge' to
@@ -24,12 +24,21 @@
 %format (CXT(t)) = "\kern-2pt_{\highlight{cxt}{" t "}}"
 
 %format Rational = "\mathbb{Q}"
+%format Nat = "\mathbb{N}"
+%format S_B = "S_\mathrm{\kern1ptB}"
+%format f_B = "f_\mathrm{\kern1ptB}"
+%format g_B = "g_\mathrm{\kern1ptB}"
+%format init_B = "\identifier{init}_\mathrm{B}"
 %format if = "\keyword{if}"
 %format then = "\keyword{then}"
 %format else = "\keyword{else}"
+%format Val = "\constructor{Val}"
+%format Heap = "\constructor{Heap}"
 %format refl = "\constructor{refl}"
 %format × = "{×}"
 %format , = "\kern-1pt,"
+%format inj₁ = "\constructor{inj_1}"
+%format inj₂ = "\constructor{inj_2}"
 %format Maybe = "\constructor{Maybe}"
 %format nothing = "\constructor{nothing}"
 %format just = "\constructor{just}"
@@ -50,12 +59,10 @@
 %format Σ[ = "\Sigma" [
 %format jigsawᵢᵥ = "\identifier{jigsaw_\mathrm{\,IV}}"
 %format fillᵢᵥ = "\identifier{fill_\mathrm{\,IV}}"
-%format flat-edge-productionᵢ = "\identifier{flat-edge-production_\mathrm{\,I}}"
 %format jigsaw-conditionᵢ = "\identifier{jigsaw-condition_\mathrm{\,I}}"
 %format jigsawᵢₕ = "\identifier{jigsaw_\mathrm{\,IH}}"
 %format fillᵢₕ = "\identifier{fill_\mathrm{\,IH}}"
-%format jigsawₕ = "\identifier{jigsaw_\mathrm{\,H}}"
-%format fillₕ = "\identifier{fill_\mathrm{\,H}}"
+%format INF = "\infty"
 
 \newcommand{\token}[1]{{\operatorname{\mathcode`\'="8000 #1}}}
 \newcommand{\keyword}[1]{\token{\mathbf{#1}}}
@@ -77,7 +84,7 @@
 \newcommand{\name}[1]{\textsc{#1}}
 \newcommand{\Agda}{\name{Agda}}
 
-%\newcommand{\varref}[2]{\hyperref[#2]{#1\ref*{#2}}}
+%\newcommand{\varref}[2]{\hyperref[#2]{#1~\ref*{#2}}}
 
 %% Some recommended packages.
 \usepackage{booktabs}   %% For formal tables:
@@ -120,7 +127,7 @@
 \newcommand{\definitionautorefname}{Definition}
 \newcommand{\exampleautorefname}{Example}
 
-\newcommand{\varparagraph}[1]{\par\textbf{#1}\hspace{.5em}} % {\textit{#1}\hspace{.5em}}
+\newcommand{\varparagraph}[1]{\par\textit{#1}\hspace{.5em}} % {\textit{#1}\hspace{.5em}}
 \newcommand{\awa}[2]{\mathrlap{#2}\phantom{#1}} % as wide as
 \newcommand{\varawa}[2]{\phantom{#1}\mathllap{#2}}
 \newcommand{\varcitet}[3][]{\citeauthor{#2}#3~[\ifthenelse{\isempty{#1}}{\citeyear{#2}}{\citeyear[#1]{#2}}]}
@@ -283,21 +290,44 @@ But this is achievable with automated proof assistants, and does not make DTP tr
 
 \section{Metamorphisms}
 
-A \emph{metamorphism}~\citep{Gibbons-metamorphisms} is an unfold after a fold --- it consumes a data structure to compute an intermediate value and then produces a new data structure using the intermediate value as the seed.
-In this paper we will look at metamorphisms consuming and producing lists.
+A \emph{metamorphism}~\citep{Gibbons-metamorphisms} consumes a data structure to compute an intermediate value and then produces a new data structure using the intermediate value as the seed.
+Like \citet{Gibbons-metamorphisms}, we will focus on \emph{list metamorphisms}, i.e., metamorphisms consuming and producing lists.
+Two of the examples of list metamorphisms given by \citet{Gibbons-metamorphisms} are:
+\begin{itemize}
+\item \emph{Base conversion for fractions}: A list of digits representing a fractional number in a particular base (e.g., $0.625_{10}$) can be converted to another list of digits in a different base (e.g., $0.101_2$).
+The conversion is a metamorphism because we can consume an input list of digits to compute the value represented by the list, and then produce an output list of digits representing the same value.
+Note that even when the input list is finite, the output list may have to be infinite --- $0.1_3 = 0.\overline{3}_{10}$, for example.
+\item \emph{Heapsort}: An input list of numbers is consumed by pushing every element into a min-heap (priority queue), from which we then pop all the elements, from the smallest to the largest, producing a sorted output list.
+\end{itemize}
+%We will use these two examples to provide more intuition in the rest of this paper.
 
+Formally, a metamorphism is a \emph{fold} followed by an \emph{unfold}, the former consuming a finite input data structure and the latter producing a potentially infinite output codata structure.
+For list metamorphisms, the inputs to be consumed are the standard finite lists:
 \begin{code}
 data List (A : Set) : Set where
   []   : List A
   _∷_  : A → List A → List A
 \end{code}
-
+The |foldr| operator subsumes the elements of a list into a state using a ``right algebra'' |f : A → S → S| and an initial state |e : S|:
 \begin{code}
 foldr : {A S : Set} → (A → S → S) → S → List A → S
 foldr f e []        = e
 foldr f e (a ∷ as)  = f a (foldr f e as)
 \end{code}
+With |foldr|, a list is consumed from the right.
+Dually, the |foldl| operator consumes a list from the left using a ``left algebra'' |f : S → A → S|:
+\begin{code}
+foldl : {A S : Set} → (S → A → S) → S → List A → S
+foldl f e []        = e
+foldl f e (a ∷ as)  = foldl f (f e a) as
+\end{code}
+A list metamorphism can use either a |foldr| or a |foldl| in its consuming part, and we will see both kinds in the paper.
+We will refer to a list metamorphism using a |foldr| as a ``right metamorphism'', and one using a |foldl| as a ``left metamorphism''.
 
+For the producing part of list metamorphisms, where we need to produce potentially infinite lists, in a total language like \Agda\ we can no longer use |List|, whose elements are necessarily finite; instead, we should switch to a \emph{codatatype} of \emph{colists}, which are potentially infinite.
+Dual to a datatype, which is defined by all the possible ways to \emph{construct} its elements, a codatatype is defined by all the possible ways to \emph{deconstruct} (or \emph{observe}) its elements.
+For a colist, we only need one way of deconstruction: exposing the colist's outermost structure, which is either empty or a pair of a head element and a tail colist.
+In \Agda\ this can be expressed as a coinductive record type |CoList| with only one field, which is a sum (empty or non-empty) structure; for cosmetic reasons, this sum structure is a datatype |CoListF| defined mutually recursively with |CoList|:
 \begin{code}
 mutual
 
@@ -310,23 +340,60 @@ mutual
     []   : CoListF B
     _∷_  : B → CoList B → CoListF B
 \end{code}
-
+Note that |decon| denotes a projection function of type |{B : Set} → CoList B → CoListF B|, and plays the role of the deconstructor of |CoList|.
+Now we can define the standard |unfoldr| operator, which uses a coalgebra |g : S → Maybe (B × S)| to unfold a colist from a given state:
 \begin{code}
 unfoldr : {B S : Set} → (S → Maybe (B × S)) → S → CoList B
 decon (unfoldr g s) with g s
 decon (unfoldr g s) | nothing        = []
 decon (unfoldr g s) | just (b , s')  = b ∷ unfoldr g s'
 \end{code}
+The operator is defined with copattern matching~\citep{Abel-copatterns}:
+To define |unfoldr g s|, which is a colist, we need to specify what will result if we deconstruct it, i.e., what |decon (unfoldr g s)| will compute to.
+This depends on whether |g|~can produce anything from~|s|:
+if |g s| is |nothing|, then the resulting colist will be empty --- that is, |decon (unfoldr g s)| will compute to |[]|;
+otherwise, |g s| is |just (b , s')| for some |b|~and~|s'|, and the resulting colist will have |b|~as its head and |unfoldr g s'| as its tail --- that is, |decon (unfoldr g s)| will compute to |b ∷ unfoldr g s'|.
 
-|b_i|, |b_o : Rational|, |(v , w_i , w_o) : Rational × Rational × Rational|, |init-state = ({-"0\;"-} , {-"\nicefrac{1}{\identifier{b_i}}\;"-} , {-"\;\nicefrac{1}{\identifier{b_o}}"-})|
+To be more concrete, let us describe our two examples, base conversion for fractions and heapsort, explicitly as metamorphisms.
 
+\varparagraph{Base conversion for fractions.}
+Suppose that the input and output bases are |b_i : Nat| and |b_o : Nat| --- in $0.625_{10} = 0.101_2$, for example, $b_i = 10$ and $b_o = 2$.
+We represent fractions as (co)lists of digits (of type~|Nat|) starting from the most significant digit --- for example, $0.625$ is represented as |{-"6\;"-} ∷ {-"2\;"-} ∷ {-"5\;"-} ∷ []|.
+To make the story short later,%
+\footnote{\citet{Gibbons-metamorphisms} gives a longer story, where base conversion for fractions is first described as a right metamorphism with a simpler state type, and then transformed to a left metamorphism.}
+we describe base conversion for fractions as a left metamorphism:
 \begin{code}
-f (v , w_i , w_o) d = ({-"v + d \times w_i\;"-} , {-"\nicefrac{w_i}{b_i}\;"-}, w_o)
+unfoldr g_B ∘ foldl f_B init_B
 \end{code}
-
+and choose the state type to be |S_B LETEQ Rational × Rational × Rational|, which are triples of the form |(v , w_i , w_o)| where |v|~is an accumulator, |w_i| the weight of the incoming input digit, and |w_o| the weight of the outgoing output digit.
+The initial state |init_B| is |({-"0\;"-} , {-"\nicefrac{1}{\identifier{b_i}}\;"-} , {-"\;\nicefrac{1}{\identifier{b_o}}"-})|.
+The left algebra~|f_B| adds the the product of the current input digit and its weight to the accumulator, and updates the input weight in preparation for the next input digit:
 \begin{code}
-g (v , w_i , w_o) =  let  d  LETEQ {-"\;\lfloor\nicefrac{\identifier{v}\kern1pt}{\identifier{w_o}}\rfloor"-}; r  LETEQ {-"\;\identifier{v} - d \times \identifier{w_o}"-}
-                     in   if {-"\identifier{v} > 0 \,\mathrel\wedge\, r + \identifier{b_i} \times \identifier{w_i} \leq \identifier{w_o}\;"-} then  just (d , (r , w_i , {-"\;\nicefrac{\identifier{w_o}\kern1pt}{\identifier{b_o}}"-})) else  nothing
+f_B : S_B → Nat → S_B
+f_B (v , w_i , w_o) d = ({-"\identifier{v} + d \times w_i\;"-} , {-"\nicefrac{w_i}{b_i}\;"-}, w_o)
+\end{code}
+while the right coalgebra~|g_B| produces an output digit and updates the accumulator and the next output weight if the accumulator is not yet zero:
+\begin{code}
+g_B (v , w_i , w_o) =  let  d  LETEQ {-"\;\lfloor\nicefrac{\identifier{v}\kern1pt}{\identifier{w_o}}\rfloor"-}; r  LETEQ {-"\;\identifier{v} - d \times \identifier{w_o}"-}
+                       in   if {-"\identifier{v} > 0\;"-} then  just (d , (r , w_i , {-"\;\nicefrac{\identifier{w_o}\kern1pt}{\identifier{b_o}}"-})) else  nothing
+\end{code}
+For the example $0.625_{10} = 0.101_2$, the metamorphism first consumes the input digits:
+\[ (0\,,\;0.1\,,\;0.5) ~\stackrel{6}{\mapsto}~ (0.6\,,\;0.01\,,\;0.5) ~\stackrel{2}{\mapsto}~ (0.62\,,\;0.001\,,\;0.5) ~\stackrel{5}{\mapsto}~ (0.625\,,\;0.0001\,,\;0.5) \]
+and then continues to produce the output digits:
+\[ (0.625\,,\;10^{-4}\,,\;0.5) ~\stackrel{1}{\mapsto}~ (0.125\,,\;10^{-4}\,,\;0.25) ~\stackrel{0}{\mapsto}~ (0.125\,,\;10^{-4}\,,\;0.125) ~\stackrel{1}{\mapsto}~ (0\,,\;10^{-4}\,,\;0.0625) ~\not\mapsto \]
+
+\varparagraph{Heapsort.}
+Heapsort is more straightforward.
+Let |Heap| be an abstract type of min-heaps on some totally ordered set |Val|, equipped with three operations:
+\begin{code}
+empty   : Heap
+push    : Val → Heap → Heap
+popMin  : Heap → Maybe (Val × Heap)
+\end{code}
+where |empty| is the empty heap, |push| adds a value into a heap, and |popMin| returns the minimum element and the rest of the input heap if and only if the input heap is non-empty.
+Then heapsort is a right metamorphism:
+\begin{code}
+unfoldr popMin ∘ foldr push empty
 \end{code}
 
 \section{Specification of Metamorphisms in Types}
@@ -388,7 +455,7 @@ What is this new state? It should be the one obtained by merging~|a| into~|s|, i
 cbp (a ∷ as) s = cbp as (f s a)
 \end{code}
 
-If there is nothing more to consume, that is, the input list is empty, we go into Goal~1, where we should produce the output co-list, to specify which we should say what will result if we observe/|decon|struct the co-list:
+If there is nothing more to consume, that is, the input list is empty, we go into Goal~1, where we should produce the output colist, to specify which we should say what will result if we observe/|decon|struct the colist:
 \begin{code}
 decon (cbp [] s) = (GOAL(CoalgListF B g s)(4))
 \end{code}
@@ -398,7 +465,7 @@ decon (cbp [] s) with g s
 decon (cbp [] s) | nothing        = (GOAL(CoalgListF B g s)(5))
 decon (cbp [] s) | just (b , s')  = (GOAL(CoalgListF B g s)(6))
 \end{code}
-If |g s| is |nothing| (Goal~5), the output co-list is empty; otherwise |g s| is some |just (b , s')| (Goal~6), in which case we use~|b| as the head and continue to produce the tail from~|s'|.
+If |g s| is |nothing| (Goal~5), the output colist is empty; otherwise |g s| is some |just (b , s')| (Goal~6), in which case we use~|b| as the head and continue to produce the tail from~|s'|.
 We therefore refine the two goals into:
 \begin{code}
 decon (cbp [] s) with g s
@@ -453,21 +520,21 @@ decon (stream as s) | nothing        | [ eq ] = (GOAL(CoalgListF B g (h s))(1))
 decon (stream as s) | just (b , s')  | [ eq ] = (GOAL(CoalgListF B g (h s))(2))
 \end{code}
 
-For Goal~1, we cannot produce anything since |g s| is |nothing|, but this does not mean that the output co-list is empty --- we may be able to produce something once we consume the input list and advance to a new state.
+For Goal~1, we cannot produce anything since |g s| is |nothing|, but this does not mean that the output colist is empty --- we may be able to produce something once we consume the input list and advance to a new state.
 We therefore pattern match on the input list:
 \begin{code}
 decon (stream []        s) | nothing | [ eq ] = (GOAL(CoalgListF B g s)(3))
 decon (stream (a ∷ as)  s) | nothing | [ eq ] = (GOAL(CoalgListF B g (h' (f s a)))(4))
 \end{code}
 These two goals are similar to what we have seen in |cbp|.
-At Goal~3, there is nothing more in the input list to consume, so we should end production as well, emitting an empty co-list, while for Goal~4 (where |h'|~is the index in the type of the tail~|as|) we should advance to the new state |f s a| and set the tail |as| as the list to be consumed next:
+At Goal~3, there is nothing more in the input list to consume, so we should end production as well, emitting an empty colist, while for Goal~4 (where |h'|~is the index in the type of the tail~|as|) we should advance to the new state |f s a| and set the tail |as| as the list to be consumed next:
 \begin{code}
 decon (stream []        s) | nothing | [ eq ] = ⟨ eq ⟩
 decon (stream (a ∷ as)  s) | nothing | [ eq ] = decon (stream as (f s a))
 \end{code}
 
 Goal~2 is the interesting case.
-Using~|g|, from the current state~|s| we can produce~|b|, which we set as the head of the output co-list, and advance to a new state~|s'|, from which we produce the tail of the co-list:
+Using~|g|, from the current state~|s| we can produce~|b|, which we set as the head of the output colist, and advance to a new state~|s'|, from which we produce the tail of the colist:
 \begin{code}
 decon (stream as(CXT(AlgList A (foldl-alg f) id h)) s) | just (b , s') | [ eq(CXT(g s ≡ just (b , s'))) ] =
   b ∷⟨ (GOAL(g (h s) ≡ just (b , h s'))(5)) ⟩ stream as s'
@@ -500,7 +567,8 @@ We already have in the context a similar-looking equality, namely |eq : g s ≡ 
 \end{tikzpicture} \]
 We also put in an implication arrow to indicate more explicitly that |g s ≡ just (b , s')| is a premise, from which we should derive |g (h s) ≡ just (b , h s')|.
 Now it is tempting, and indeed easy, to complete the diagram:
-\[ \begin{tikzpicture}[x=12em,y=4em,baseline=(u.base)]
+\begin{equation}
+\begin{tikzpicture}[x=12em,y=4em,baseline=(u.base)]
 \node(x) [anchor=center] {|s|};
 \node(x') [below=1 of x,anchor=center] {|s'|};
 \node(hx) [right=1 of x,anchor=center] {|h s|};
@@ -510,7 +578,9 @@ Now it is tempting, and indeed easy, to complete the diagram:
 \draw[serif cm-to] (x) edge node(t)[left]{produce~|b| with~|g|} (x ||- x'.north);
 \draw[serif cm-to] (hx) edge node(u)[right]{produce~|b| with~|g|} (hx ||- hx'.north);
 \node at ($(t)!0.5!(u)$) [anchor=center] {$\Rightarrow$};
-\end{tikzpicture} \]
+\end{tikzpicture}
+\label{eq:streaming-big-step}
+\end{equation}
 This is a kind of commutativity of production and consumption:
 From the initial state~|s|, we can either
 \begin{itemize}
@@ -520,10 +590,11 @@ From the initial state~|s|, we can either
 If the first route is possible, the second route should also be possible, and the outcomes should be the same --- doing production using~|g| and consumption using~|h| in whichever order should emit the same element and reach the same final state.
 This cannot be true in general, and should be formulated as a condition of the streaming algorithm.
 
-The above commutativity of |g|~and~|h| looks more like a derived consequence rather than a basic condition, though ---
+The above commutativity~(\ref{eq:streaming-big-step}) of |g|~and~|h| looks more like a derived consequence rather than a basic condition, though ---
 it is commutativity of one step of production (using~|g|) and multiple steps of consumption (of the entire list, using~|h|), whereas the algorithm is specified in terms of |g|~and~|f|, which are single-step production and consumption.
 Hence it is more natural to require that |g|~and~|f| commute instead:
-\[ \begin{tikzpicture}[x=12em,y=4em]
+\begin{equation}
+\begin{tikzpicture}[x=12em,y=4em,baseline=(u.base)]
 \node(x) [anchor=center] {|s|};
 \node(x') [below=1 of x,anchor=center] {|s'|};
 \node(hx) [right=1 of x,anchor=center] {|f s a|};
@@ -533,7 +604,9 @@ Hence it is more natural to require that |g|~and~|f| commute instead:
 \draw[serif cm-to] (x) edge node(t)[left]{produce~|b| with~|g|} (x ||- x'.north);
 \draw[serif cm-to] (hx) edge node(u)[right]{produce~|b| with~|g|} (hx ||- hx'.north);
 \node at ($(t)!0.5!(u)$) [anchor=center] {$\Rightarrow$};
-\end{tikzpicture} \]
+\end{tikzpicture}
+\label{eq:streaming}
+\end{equation}
 This is \varcitet{Gibbons-metamorphisms}{'s} \emph{streaming condition}, which is needed for proving the correctness of the streaming algorithm.
 In our development of |stream|, we can assume that a proof of the streaming condition is available:
 \begin{code}
@@ -556,6 +629,11 @@ If we give a hint that case-splitting is needed (\texttt{-c}), Auto can complete
 \begin{code}
 streaming-lemma []        eq = eq
 streaming-lemma (a ∷ as)  eq = streaming-lemma as (streaming-condition eq)
+\end{code}
+
+\begin{code}
+g_B (v , w_i , w_o) =  let  d  LETEQ {-"\;\lfloor\nicefrac{\identifier{v}\kern1pt}{\identifier{w_o}}\rfloor"-}; r  LETEQ {-"\;\identifier{v} - d \times \identifier{w_o}"-}
+                       in   if {-"\identifier{v} > 0 \,\mathrel\wedge\, r + \identifier{b_i} \times \identifier{w_i} \leq \identifier{w_o}\;"-} then  just (d , (r , w_i , {-"\;\nicefrac{\identifier{w_o}\kern1pt}{\identifier{b_o}}"-})) else  nothing
 \end{code}
 
 \begin{figure}
@@ -583,6 +661,7 @@ module Streaming
 \end{figure}
 
 \section{Jigsaw Metamorphisms: The Infinite Case}
+\label{sec:jigsaw-infinite}
 
 Back to the |foldr| version, but there is some problem with a definitional implementation.
 \citet{Nakano-jigsaw}
@@ -626,7 +705,7 @@ decon (jigsawᵢₕ as) | (b , _ , as' , eq) = b ∷⟨ cong just eq ⟩ jigsaw�
 
 \varparagraph{The road not taken.}
 From Goal~1, there seems to be another way forward: the equality says that the output vertical edge~|b| and the index~|t| in the type of~|as'| are determined by |g s|, so |jigsawᵢₕ| could have computed |g s| and obtained |b|~and~|t| directly!
-However, recall that the characteristic of the jigsaw model is that computation proceeds by converting input list elements directly into output co-list elements without involving states, which only appear in the specifications.%
+However, recall that the characteristic of the jigsaw model is that computation proceeds by converting input list elements directly into output colist elements without involving states, which only appear in the specifications.%
 \todo{irrelevance}\
 In our setting, this means that states only appear in the function types, not the function bodies, so having |jigsawᵢₕ| invoke |g s| would deviate from the jigsaw model.
 Instead, |jigsawᵢₕ| invokes |fillᵢₕ|, which will only use |piece| to compute~|b|.
@@ -647,8 +726,8 @@ We should now give the output list, which we know should have the same length as
 fillᵢₕ [] = (flat-edge , _ , [] , (GOAL(g e ≡ (flat-edge , e))(6)))
 \end{code}
 Here we arrive at another proof obligation, which says that from the initial state~|e| the coalgebra~|g| should produce |flat-edge| and leave the state unchanged.
-This is a reasonable property to add as an assumption of the algorithm: if we want all the rightmost vertical edges to be ``flat'', it had better be the case that the initial state (at the top right corner) does give rise to a co-list of |flat-edge|s.
-We there add an additional assumption |flat-edge-productionᵢ : g e ≡ (flat-edge , e)|, which discharges Goal~5.
+This is a reasonable property to add as an assumption of the algorithm: if we want all the rightmost vertical edges to be ``flat'', it had better be the case that the initial state (at the top right corner) does give rise to a colist of |flat-edge|s.
+We there add an additional assumption |flat-edge-production : g e ≡ (flat-edge , e)|, which discharges Goal~5.
 
 The interesting case is when the input list is non-empty (Goal~4).
 We start with an inductive call to |fillᵢₕ| itself:
@@ -667,9 +746,10 @@ fillᵢₕ (a ∷ as                      ) | (b , s' , as' , eq(CXT(g s ≡ (b 
 \end{code}
 Here we see a familiar pattern: Goal~8 demands an equality about producing from a state after consumption, and in the context we have an equality |eq| about producing from a state before consumption.
 Following what we did in \autoref{sec:streaming}, a commutative state transition diagram can be drawn:
-\[ \begin{tikzpicture}[x=12em,y=4em]
-\node(x) [anchor=center] {|s|};
-\node(x') [below=1 of x,anchor=center] {|s'|};
+\begin{equation}
+\begin{tikzpicture}[x=12em,y=4em,baseline=(u.base)]
+\node(x) [anchor=center] {|s|\vphantom{|f|}};
+\node(x') [below=1 of x,anchor=center] {|s'|\vphantom{|f|}};
 \node(hx) [left=1 of x,anchor=center] {|f a s|};
 \node(hx') [left=1 of x',anchor=center] {|f a' s'|};
 \draw[serif cm-to] (x) edge node[above]{consume~|a| with~|f|} (hx);
@@ -677,9 +757,11 @@ Following what we did in \autoref{sec:streaming}, a commutative state transition
 \draw[serif cm-to] (x) edge node(t)[right]{produce~|b| with~|g|} (x ||- x'.north);
 \draw[serif cm-to] (hx) edge node(u)[left]{produce~|b'| with~|g|} (hx ||- hx'.north);
 \node at ($(t)!0.5!(u)$) [anchor=center] {$\Leftarrow$};
-\end{tikzpicture} \]
+\end{tikzpicture}
+\label{eq:jigsaw}
+\end{equation}
 where |(b' , a') = piece (a , b)|.
-This is again a kind of commutativity of production and consump\-tion, but unlike the streaming condition in \autoref{sec:streaming}, the elements produced and consumed can change after swapping the order of production and consumption.
+This is again a kind of commutativity of production and consump\-tion, but unlike the streaming condition~(\ref{eq:streaming}) in \autoref{sec:streaming}, the elements produced and consumed can change after swapping the order of production and consumption.
 Given any top and right edges |a|~and~|b|, the |piece| function can always compute the left and bottom edges |b'|~and~|a'| to complete the commutative diagram.
 This constitutes a specification for |piece|, and we call it the \emph{jigsaw condition}:
 \begin{code}
@@ -695,44 +777,52 @@ Do the same conditions work for a different placement strategy?
 Let us find out!
 
 A natural strategy to try next is to place jigsaw pieces vertically, one column at a time.
+We start from exactly the same type:
 \begin{code}
 jigsawᵢᵥ : {s : S} → AlgList A f e s → CoalgList B (just ∘ g) s
 jigsawᵢᵥ as = (GOAL(CoalgList B (just ∘ g) s)(0))
 \end{code}
-
+The placing of columns follows the structure of the input list, so |jigsawᵢᵥ| is itself an induction:
 \begin{code}
 jigsawᵢᵥ []                              = (GOAL(CoalgList B (just ∘ g) e)(1))
 jigsawᵢᵥ (a ∷ as(CXT(AlgList A f e s)))  = (GOAL(CoalgList B (just ∘ g) (f a s))(2))
 \end{code}
-
+If the input list is empty (Goal~1), we should produce a colist of |flat-edge|s:
 \begin{code}
 decon (jigsawᵢᵥ []) = flat-edge ∷⟨ (GOAL(just (g e) ≡ just (flat-edge , e))(3)) ⟩ jigsawᵢᵥ []
 \end{code}
-
+The proof obligation here (Goal~3) is discharged with |cong just flat-edge-production|.
+For the inductive case (Goal~2):
+We place all the columns below the tail~|as| by an inductive call |jigsawᵢₕ as|, which gives us a colist of vertical edges.
+To the left of this colist, we should place the last column below the head element~|a|; again we introduce a helper function |fillᵢᵥ| that takes |a|~and the colist as input and produces the colist of the leftmost edges:
 \begin{code}
 jigsawᵢᵥ (a ∷ as) = fillᵢᵥ a (jigsawᵢₕ as)
 \end{code}
-
+Agda again can give us a suitable type of |fillᵢᵥ|:
 \begin{code}
 fillᵢᵥ : {s : S} (a : A) → CoalgList B (just ∘ g) s → CoalgList B (just ∘ g) (f a s)
 fillᵢᵥ a bs = (GOAL(CoalgList B (just ∘ g) (f a s))(4))
 \end{code}
-
+Here we should deconstruct |bs| so that we can invoke |piece| on |a|~and the first element of~|bs|:
 \begin{code}
 decon (fillᵢᵥ a bs(CXT(CoalgList B (just ∘ g) s))) with decon bs
 decon (fillᵢᵥ a bs) | ⟨ eq(CXT(just (g s) ≡ nothing)) ⟩ = (GOAL(CoalgListF B (just ∘ g) (f a s))(5))
 decon (fillᵢᵥ a bs) | b ∷⟨ eq(CXT(just (g s) ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B (just ∘ g) s')) =
   (GOAL(CoalgListF B (just ∘ g) (f a s))(6))
 \end{code}
-
+For Goal~5, since the coalgebra |just ∘ g| in the type of~|bs| never returns |nothing|, it is impossible for |bs| to be empty.
+We can convince \Agda\ that this case is impossible by matching |eq| with the absurd pattern~|()|, saying that |eq| cannot possibly exist (and \Agda\ accepts this because a |just|-value can never be equal to |nothing|):
 \begin{code}
 decon (fillᵢᵥ a bs) | ⟨ () ⟩
 \end{code}
-
+For Goal~6, we invoke the |piece| function to transform |a|~and~|b| to |b'|~and~|a'|; the head of the output colist is then~|b'|, and the tail is coinductively computed from |a'|~and~|bs'|.
 \begin{code}
 decon (fillᵢᵥ a bs) | b ∷⟨ eq(CXT(just (g s) ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B (just ∘ g) s')) =
   let (b' , a') LETEQ piece (a , b) in b' ∷⟨ (GOAL(just (g (f a s)) ≡ just (b' , f a' s'))(7)) ⟩ fillᵢᵥ a' bs'
 \end{code}
+The remaining proof obligation can indeed be discharged with the jigsaw condition, modulo the harmless occurrences of |just|.
+
+\todo[inline]{Not too surprising though, if we think about how |jigsawᵢᵥ| will be evaluated.}
 
 \begin{figure}
 \beforefigurecode
@@ -742,11 +832,11 @@ module Jigsaw-Infinite
   (piece : A × B → B × A)
   (jigsaw-conditionᵢ :  {a : A} {b : B} {s s' : S} →
                         g s ≡ (b , s') → let (b' , a') LETEQ piece (a , b) in g (f a s) ≡ (b' , f a' s'))
-  (flat-edge : B) (flat-edge-productionᵢ : g e ≡ (flat-edge , e))
+  (flat-edge : B) (flat-edge-production : g e ≡ (flat-edge , e))
   where
 
   fillᵢₕ : {s : S} → AlgList A f e s → Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A f e t × g s ≡ (b , t)
-  fillᵢₕ [] = flat-edge , _ , [] , flat-edge-productionᵢ
+  fillᵢₕ [] = flat-edge , _ , [] , flat-edge-production
   fillᵢₕ (a ∷ as) with fillᵢₕ as
   fillᵢₕ (a ∷ as) | b , _ , as' , eq =  let  (b' , a') LETEQ piece (a , b)
                                         in   b' , _ , a' ∷ as' , jigsaw-conditionᵢ eq
@@ -763,7 +853,7 @@ module Jigsaw-Infinite
     in   b' ∷⟨ cong just (jigsaw-conditionᵢ (cong-from-just eq)) ⟩ fillᵢᵥ a' bs'
 
   jigsawᵢᵥ : {s : S} → AlgList A f e s → CoalgList B (just ∘ g) s
-  decon (jigsawᵢᵥ []) = flat-edge ∷⟨ cong just flat-edge-productionᵢ ⟩ jigsawᵢᵥ []
+  decon (jigsawᵢᵥ []) = flat-edge ∷⟨ cong just flat-edge-production ⟩ jigsawᵢᵥ []
   jigsawᵢᵥ (a ∷ as) = fillᵢᵥ a (jigsawᵢᵥ as)
 \end{code}
 \caption{Infinite jigsaw metamorphisms}
@@ -771,33 +861,136 @@ module Jigsaw-Infinite
 \end{figure}
 
 \section{Jigsaw Metamorphisms: The General (Possibly Finite) Case}
+\label{sec:jigsaw-general}
+
+Let |f : A → S → S|, |e : S|, and |g : S → Maybe (B × S)|.
 
 \begin{code}
-jigsawₕ : {s : S} → AlgList A f e s → CoalgList B g s
-jigsawₕ as = (GOAL(CoalgList B g DOT s)(0))
+jigsaw : {s : S} → AlgList A f e s → CoalgList B g s
+jigsaw as = (GOAL(CoalgList B g s)(0))
+\end{code}
+We use the vertical placement strategy, so the overall structure will be similar to |jigsawᵢᵥ| in \autoref{sec:jigsaw-infinite}.
+Start from a case analysis:
+\begin{code}
+jigsaw []                              = (GOAL(CoalgList B g e)(1))
+jigsaw (a ∷ as(CXT(AlgList A f e s)))  = (GOAL(CoalgList B g (f a s))(2))
+\end{code}
+At Goal~1, it should suffice to produce an empty colist:
+\begin{code}
+decon (jigsaw []) = ⟨ (GOAL(g e ≡ nothing)(3)) ⟩
+\end{code}
+To do so we need |g e ≡ nothing|, which is a reasonable assumption --- |e|~is intuitively an empty state, from which |g|~should produce |nothing|.
+For Goal~2, we proceed in exactly the same way as we dealt with the corresponding case of |jigsawᵢᵥ|:
+\begin{code}
+jigsaw (a ∷ as) = fill a (jigsaw as)
+\end{code}
+where the type and the top-level structure of the helper function |fill| is also exactly the same as |fillᵢᵥ|:
+\begin{code}
+fill : {s : S} (a : A) → CoalgList B g s → CoalgList B g (f a s)
+decon (fill a bs(CXT(CoalgList B g s))) with decon bs
+decon (fill a bs) | ⟨ eq(CXT(g s ≡ nothing)) ⟩ = (GOAL(CoalgListF B g (f a s))(4))
+decon (fill a bs) | b ∷⟨ eq(CXT(g s ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B g s')) = (GOAL(CoalgListF B g (f a s))(5))
+\end{code}
+The situation gets more interesting from this point.
+
+Let us work on the familiar case first, namely Goal~5.
+If we do the same thing as the corresponding case of |fillᵢᵥ|:
+\begin{code}
+decon (fill a bs) | b ∷⟨ eq(CXT(g s ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B g s')) =
+  let (b' , a') LETEQ piece (a , b) in b' ∷⟨ (GOAL'(g (f a s) ≡ just (b' , f a' s'))) ⟩ fill a' bs'
+\end{code}
+we will see that the condition we need is depicted exactly as diagram~(\ref{eq:jigsaw}).
+Formally it is slightly different though, because we need to wrap the results of~|g| in the |just| constructor:
+\begin{flalign}
+\hspace\mathindent
+& |{a : A} {b : B} {s s' : S} →| \nonumber & \\[-.5ex]
+& |g s ≡ just (b , s') → let (b' , a') LETEQ piece (a , b) in g (f a s) ≡ just (b' , f a' s'))| &
+\label{eq:jigsaw-just}
+\end{flalign}
+
+Goal~4, unlike the corresponding case of |fillᵢᵥ|, is no longer impossible.
+We might be tempted to produce an empty colist here:
+\begin{code}
+decon (fill a bs) | ⟨ eq(CXT(g s ≡ nothing)) ⟩ = ⟨ (GOAL'(g (f a s) ≡ nothing)) ⟩
+\end{code}
+But the proof obligation indicates that this is not a right choice.
+From an empty state~|s| (i.e., |g s ≡ nothing|) we have to deduce that the next state |f a s| is also empty (i.e., |g (f a s) ≡ nothing|), but this apparently does not hold in general.
+For heapsort, adding a finite element to a heap always makes the heap extractable, constituting a counterexample.
+On the other hand, adding~|INF| to an empty heap does keep the heap empty by our definition, so producing an empty colist is not always wrong.
+This suggests that we should do a case analysis on~|a| to determine whether to produce an empty or non-empty colist at Goal~4.
+Let us call an element of~|A| \emph{flat} exactly when merging it into an empty state results in another empty state. 
+There should be a decision procedure |flat?| that can be used to identify flat elements:
+\begin{code}
+flat? : (a : A) →  ({s : S} → g s ≡ nothing → g (f a s) ≡ nothing) ⊎ (GOAL(Set)(7))
 \end{code}
 
 \begin{code}
-jigsawₕ []                              = (GOAL(CoalgList B g e)(1))
-jigsawₕ (a ∷ as(CXT(AlgList A f e s)))  = (GOAL(CoalgList B g (f a s))(2))
+decon (fill a bs) | ⟨ eq(CXT(g s ≡ nothing)) ⟩ with flat? a
+decon (fill a bs) | ⟨ eq ⟩ | inj₁  flat      = ⟨ (GOAL(g (f a s) ≡ nothing)(8)) ⟩
+decon (fill a bs) | ⟨ eq ⟩ | inj₂  not-flat  = (GOAL(CoalgListF B g (f a s))(9))
 \end{code}
+
+|flat eq|
+
+|flat-edge : B|
 
 \begin{code}
-decon (jigsawₕ []) = ⟨ (GOAL(g e ≡ nothing)(3)) ⟩
+let (b' , a') LETEQ piece (a , flat-edge) in b' ∷⟨ (GOAL'(g (f a s) ≡ just (b' , f a' s))) ⟩ fill a' bs
 \end{code}
 
-|end-of-production : g e ≡ nothing|
+\[ \begin{tikzpicture}[x=12em,y=4em,baseline=(u.base)]
+\node(x) [anchor=center] {|s|\vphantom{|f|}};
+\node(x') [below=1 of x,anchor=center] {|s|\vphantom{|f|}};
+\node(hx) [left=1 of x,anchor=center] {|f a s|};
+\node(hx') [left=1 of x',anchor=center] {|f a' s|};
+\draw[serif cm-to] (x) edge node[above]{consume~|a| with~|f|} (hx);
+\draw[serif cm-to] (x') edge node[below]{consume~|a'| with~|f|} (hx');
+\draw[serif cm-to] (x) edge[dashed] node(t)[right]{(produce |flat-edge| with~|g|)} (x ||- x'.north);
+\draw[serif cm-to] (hx) edge node(u)[left]{produce~|b'| with~|g|} (hx ||- hx'.north);
+%\node at ($(t)!0.5!(u)$) [anchor=center] {$\Leftarrow$};
+\end{tikzpicture} \]
 
 \begin{code}
-jigsawₕ (a ∷ as) = fillₕ a (jigsawₕ as)
+jigsaw-condition :
+  {a : A} {b : B} {s s' : S} →
+  g s ≡ just (b , s') ⊎ (g s ≡ nothing × g (f a s) ≢ nothing × b ≡ flat-edge × s' ≡ s) →
+  let (b' , a') LETEQ piece (a , b) in g (f a s) ≡ just (b' , f a' s')
 \end{code}
 
+\begin{figure}
+\beforefigurecode
 \begin{code}
-fillₕ : {s : S} (a : A) → CoalgList B g s → CoalgList B g (f a s)
-decon (fillₕ a bs(CXT(CoalgList B g s))) with decon bs
-decon (fillₕ a bs) | ⟨ eq(CXT(g s ≡ nothing)) ⟩ = (GOAL(CoalgListF B g (f a s))(4))
-decon (fillₕ a bs) | b ∷⟨ eq(CXT(g s ≡ just (b , s')) ⟩ bs'(CXT(CoalgList B g s')) = (GOAL(CoalgListF B g (f a s))(5))
+module Jigsaw-General
+  (f : A → S → S) (e : S) (g : S → Maybe (B × S))
+  (piece : A × B → B × A)
+  (flat-edge : B)
+  (flat? : (a : A) →  ({s : S} → g s ≡ nothing → g (f a s) ≡ nothing) ⊎
+                      ({s : S} → g (f a s) ≢ nothing))
+  (nothing-from-e : g e ≡ nothing)
+  (jigsaw-condition :
+    {a : A} {b : B} {s s' : S} →
+    g s ≡ just (b , s') ⊎ (g s ≡ nothing × g (f a s) ≢ nothing × b ≡ flat-edge × s' ≡ s) →
+    let (b' , a') LETEQ piece (a , b) in g (f a s) ≡ just (b' , f a' s'))
+  where
+
+  fill : {s : S} (a : A) → CoalgList B g s → CoalgList B g (f a s)
+  decon (fill a bs) with decon bs
+  decon (fill a bs) | ⟨ eq ⟩ with flat? a 
+  decon (fill a bs) | ⟨ eq ⟩ | inj₁ flat      = ⟨ flat eq ⟩
+  decon (fill a bs) | ⟨ eq ⟩ | inj₂ not-flat  =
+    let  (b' , a') LETEQ piece (a , flat-edge)
+    in   b' ∷⟨ jigsaw-condition (inj₂ (eq , not-flat , refl , refl)) ⟩ fill a' bs
+  decon (fill a bs) | b ∷⟨ eq ⟩ bs' =
+    let  (b' , a') LETEQ piece (a , b)
+    in   b' ∷⟨ jigsaw-condition (inj₁ eq) ⟩ fill a' bs'
+
+  jigsaw : {s : S} → AlgList A f e s → CoalgList B g s
+  decon (jigsaw [])  = ⟨ nothing-from-e ⟩
+  jigsaw (a ∷ as)    = fill a (jigsaw as)
 \end{code}
+\caption{General (possibly finite) jigsaw metamorphisms}
+\label{fig:jigsaw-general}
+\end{figure}
 
 \section{Discussion}
 
@@ -813,6 +1006,8 @@ Relationship with \citet{Thibodeau-indexed-codata-types}.
 
 It is not just reducing the activity of program design to type design and good type inhabitation algorithms --- types do not determine programs.
 Correctness concerns are moved into the types and enforced, but the programmer still gets to make decisions about algorithmic details.
+
+``situation awareness''
 
 It is interesting to compare our implementation with the proofs of \citet{Bird-arithmetic-coding}.
 While their Lemma~29 turns explicitly into our |streaming-lemma|, their Theorem~30 goes implicitly into the typing of |stream| and no longer needs special attention.
