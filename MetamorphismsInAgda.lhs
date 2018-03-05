@@ -301,7 +301,7 @@ Note that even when the input list is finite, the output list may have to be inf
 \end{itemize}
 %We will use these two examples to provide more intuition in the rest of this paper.
 
-Formally, a metamorphism is a \emph{fold} followed by an \emph{unfold}, the former consuming a finite input data structure and the latter producing a potentially infinite output codata structure.
+Formally, a metamorphism is a \emph{fold} followed by an \emph{unfold}, the former consuming a finite data structure and the latter producing a potentially infinite codata structure.
 For list metamorphisms, the inputs to be consumed are the standard finite lists:
 \begin{code}
 data List (A : Set) : Set where
@@ -354,7 +354,7 @@ This depends on whether |g|~can produce anything from~|s|:
 if |g s| is |nothing|, then the resulting colist will be empty --- that is, |decon (unfoldr g s)| will compute to |[]|;
 otherwise, |g s| is |just (b , s')| for some |b|~and~|s'|, and the resulting colist will have |b|~as its head and |unfoldr g s'| as its tail --- that is, |decon (unfoldr g s)| will compute to |b ∷ unfoldr g s'|.
 
-To be more concrete, let us describe our two examples, base conversion for fractions and heapsort, explicitly as metamorphisms.
+To be more concrete, let us describe our two examples --- base conversion for fractions and heapsort --- explicitly as metamorphisms.
 
 \varparagraph{Base conversion for fractions.}
 Suppose that the input and output bases are |b_i : Nat| and |b_o : Nat| --- in $0.625_{10} = 0.101_2$, for example, $b_i = 10$ and $b_o = 2$.
@@ -383,14 +383,13 @@ and then produces the output digits using~|g_B|:
 \[ (0.625\,,\;10^{-4}\,,\;0.5) ~\stackrel{1}{\mapsto}~ (0.125\,,\;10^{-4}\,,\;0.25) ~\stackrel{0}{\mapsto}~ (0.125\,,\;10^{-4}\,,\;0.125) ~\stackrel{1}{\mapsto}~ (0\,,\;10^{-4}\,,\;0.0625) ~\not\mapsto \]
 
 \varparagraph{Heapsort.}
-Heapsort is more straightforward.
 Let |Heap| be an abstract type of min-heaps on some totally ordered set |Val|, equipped with three operations:
 \begin{code}
 empty   : Heap
 push    : Val → Heap → Heap
 popMin  : Heap → Maybe (Val × Heap)
 \end{code}
-where |empty| is the empty heap, |push| adds a value into a heap, and |popMin| returns the minimum element and the rest of the input heap if and only if the input heap is non-empty.
+where |empty| is the empty heap, |push| adds an element into a heap, and |popMin| returns the minimum element and the rest of the input heap if and only if the input heap is non-empty.
 Then heapsort can be directly described as a right metamorphism:
 \begin{code}
 unfoldr popMin ∘ foldr push empty
@@ -398,14 +397,23 @@ unfoldr popMin ∘ foldr push empty
 
 \section{Specification of Metamorphisms in Types}
 
+In the rest of this paper we will develop several \emph{metamorphic algorithms}, which compute a metamorphism but do not take the form of a fold followed by an unfold.
+Rather than proving that these algorithms satisfy their metamorphic specification, we will encode metamorphic specifications in types, such that any type-checked program is a correct metamorphic algorithm.
+
+The encoding is based on \varcitet{McBride-ornaments}{'s} \emph{algebraic ornamentation}.
+Given a right algebra |f : A → S → S| and |e : S|, we can partition |List A| into a family of types |AlgList A f e : S → Set| indexed by~|S| such that (conceptually) every list~|as| is classified under |AlgList A f e (foldr f e as)|.
+The definition of |AlgList| is obtained by ``fusing'' |foldr| into |List|:
 \begin{code}
 data AlgList (A {S} : Set) (f : A → S → S) (e : S) : S → Set where
   []   : AlgList A f e e
   _∷_  : (a : A) → {s : S} → AlgList A f e s → AlgList A f e (f a s)
 \end{code}
+The empty list is classified under |e LETEQ foldr f e []|.
+For the inductive case, if a tail~|as| is classified under~|s|, meaning that |foldr f e as LETEQ s|, then the whole list |a ∷ as| should be classified under |f a s| since |foldr f e (a ∷ as) = f a (foldr f e as) = f a s|.
 
-\citet{McBride-ornaments}
-
+Dually, given a coalgebra |g : S → Maybe (B × S)|, we can partition |CoList B| into a family of types |CoalgList B g : S → Set| such that a colist is classified under |CoalgList B g s| if it is unfolded from~|s| using~|g|.
+(Note that, extensionally, every |CoalgList B g s| has exactly one inhabitant; intensionally there may be different ways to describe/compute that inhabitant, though.)
+Again the definition of |CoalgList| is obtained by fusing |unfoldr| into |CoList|:
 \begin{code}
 mutual
 
@@ -418,11 +426,35 @@ mutual
     ⟨_⟩     : {s : S} → g s ≡ nothing → CoalgListF B g s
     _∷⟨_⟩_  : (b : B) → {s s' : S} → g s ≡ just (b , s') → CoalgList B g s' → CoalgListF B g s
 \end{code}
+Deconstructing a colist of type |CoalgList B g s| can lead to two possible outcomes: the colist can be empty, in which case we know that |g s| is |nothing|, or it can be non-empty, in which case we know that |g s| produces the head element, and that the tail colist is unfolded from the next state~|s'| given by |g s|.
 
-The |foldr| version, and then the |foldl| version.
-
-Let |A|, |B|, |S : Set| throughout the rest of this paper.%
+Let |A|, |B|, |S : Set| throughout the rest of this paper%
 \footnote{That is, think of the code in the rest of this paper as contained in a module with parameters |A|, |B|, |S : Set|.}
+--- we will assume that |A|~is the type of input elements, |B|~the type of output elements, and |S|~the type of states.
+Given a right algebra |f : A → S → S|, |e : S|, and a coalgebra |g : S → Maybe (B × S)|, any program of type:
+\begin{code}
+{s : S} → AlgList A f e s → CoalgList B g s
+\end{code}
+implements the right metamorphism |unfoldr g ∘ foldr f e|, since the indexing enforces that the input list folds to~|s|, from which the output colist is then unfolded.
+
+What about left metamorphisms?
+Thankfully, we do not need to define another variant of |AlgList| due to an old trick that expresses a |foldl| in terms of a |foldr|.
+Given a left algebra |f : S → A → S|, |e : S|, and |as : List A|, think of the work of |foldl f e as| as (i)~partially applying |flip f : A → S → S| (where |flip f x y = f y x|) to turn every element of~|as| to a state transformation of type |S → S|, (ii)~composing the state transformations from left to right, and finally (iii)~applying the resulting composite transformation to~|e|.
+The left-to-right order appears only in step~(ii), which, in fact, can also be performed from right to left since function composition is associative.
+In short, we have:
+\begin{code}
+foldl f e as = foldr (foldl-alg f) id as e
+\end{code}
+where
+\begin{code}
+foldl-alg : {A S : Set} → (S → A → S) → A → (S → S) → (S → S)
+foldl-alg f a t = t ∘ flip f a
+\end{code}
+The type of left metamorphic algorithms can then be specified as:
+\begin{code}
+{h : S → S} → AlgList A (foldl-alg f) id h → (s : S) → CoalgList B g (h s)
+\end{code}
+which says that if the input list folds to a state transformation~|h| and the initial state is~|s|, then the output colist should be unfolded from |h s|.
 
 \section{Definitional Implementation of Metamorphisms}
 \label{sec:cbp}
