@@ -436,7 +436,7 @@ mutual
     ⟨_⟩     : {s : S} → g s ≡ nothing → CoalgListF B g s
     _∷⟨_⟩_  : (b : B) → {s s' : S} → g s ≡ just (b , s') → CoalgList B g s' → CoalgListF B g s
 \end{code}
-Deconstructing a colist of type |CoalgList B g s| can lead to two possible outcomes: the colist can be empty, in which case we know that |g s| is |nothing|, or it can be non-empty, in which case we know that |g s| produces the head element, and that the tail colist is unfolded from the next state~|s'| produced by |g s|.
+Deconstructing a colist of type |CoalgList B g s| can lead to two possible outcomes: the colist can be empty, in which case we also get an equality proof that |g s| is |nothing|, or it can be non-empty, in which case we know that |g s| produces the head element, and that the tail colist is unfolded from the next state~|s'| produced by |g s|.
 
 Let |A|, |B|, |S : Set| throughout the rest of this paper%
 \footnote{That is, think of the code in the rest of this paper as contained in a module with parameters |A|, |B|, |S : Set|.}
@@ -476,9 +476,9 @@ cbp : {h : S → S} → AlgList A (left-alg _▷_) id h → (s : S) → CoalgLis
 cbp as(CXT(AlgList A (left-alg _▷_) id h)) s = (GOAL(CoalgList B g (h s))(0))
 \end{code}
 \Agda\ provides an interactive development environment as an emacs mode.
-In this environment, we can leave ``holes'' in programs and fill them later, usually with \Agda's help.
+In this environment, we can leave ``holes'' in programs and fill or refine them, often with \Agda's help.
 Such a hole is called an \emph{interaction point} or a \emph{goal}, of which the \highlight{goal}{\text{green-shaded part}} above is an example.
-At goals, \Agda\ can be instructed to provide various information and even perform some program synthesis.
+At goals, \Agda\ can be instructed to provide various information and even perform some program synthesis (with an ``Auto'' command).
 One most important piece of information for a goal is its expected type, which we always display in curly brackets.
 Goals are numbered when they need to be referred to in the text.
 At goals, we can also query the types of the variables in scope; whenever the type of a variable needs to be displayed, we will annotate the variable with its type in \highlight{cxt}{\text{yellow-shaded subscript}} (which is not part of the program text).
@@ -494,7 +494,7 @@ cbp (a ∷ as(CXT(AlgList A (left-alg _▷_) id h)))  s = (GOAL(CoalgList B g (h
 Now Goal~0 is gone, and two new goals appear.
 Note that the expected types of the two new goals have changed: at Goal~1, for example, we see that the output colist should be unfolded directly from the initial state~|s| since the input list is empty.
 By providing sufficient type information, \Agda\ can keep track of such relationship for us!
-We continue to interact with and evolve these two new goals.
+We continue to interact with and refine these two new goals.
 
 If there is something to consume, that is, the input list is non-empty, we go into Goal~2, where we keep consuming the tail |as| but from a new state:
 \begin{code}
@@ -510,7 +510,7 @@ If there is nothing more to consume, that is, the input list is empty, we go int
 \begin{code}
 decon (cbp [] s) = (GOAL(CoalgListF B g s)(4))
 \end{code}
-The result of observation depends on whether |g|~can produce anything from the current state~|s|, so we pattern match on |g s|:
+The result of observation depends on whether |g|~can produce anything from the current state~|s|, so we pattern match on |g s|, splitting Goal~4 into:
 \begin{code}
 decon (cbp [] s) with g s
 decon (cbp [] s) | nothing        = (GOAL(CoalgListF B g s)(5))
