@@ -23,12 +23,17 @@
 %format (GOAL'(t)) = "\highlight{goal}{\textbf\{\," t "\,\textbf\}}"
 %format (CXT(t)) = "\kern-2pt_{\highlight{cxt}{" t "}}"
 
+%format ◁ = "{\lhd}"
+%format _◁_ = _ ◁ _
+%format ▷ = "{\kern.5pt\rhd\kern-1pt}"
+%format _▷_ = _ ▷ _
 %format Rational = "\mathbb{Q}"
 %format Nat = "\mathbb{N}"
-%format S_B = "S_\mathrm{\kern.5ptB}"
-%format f_B = "f_\mathrm{\kern1ptB}"
-%format g_B = "g_\mathrm{\kern1ptB}"
-%format init_B = "\identifier{init}_\mathrm{B}"
+%format S_C = "S_\mathrm{\kern.5ptC}"
+%format ▷ᶜ = "\kern.5pt{\rhd}_\mathrm{C}\kern-.5pt"
+%format _▷ᶜ_ = _ ▷ᶜ _
+%format g_C = "g_\mathrm{\kern1ptC}"
+%format e_C = "\identifier{e}_\mathrm{C}"
 %format if = "\keyword{if}"
 %format then = "\keyword{then}"
 %format else = "\keyword{else}"
@@ -278,6 +283,7 @@
 
 
 \section{Why dependently typed programming?}
+\label{sec:intro}
 
 Why do we want to program with full dependent types?
 For larger-scale proofs, writing proof terms in a dependently typed language is usually much less efficient than working with a proof assistant with decent automation.
@@ -289,6 +295,7 @@ But this is achievable with automated proof assistants, and does not make DTP tr
 \todo[inline]{Agda 2.5.2 with Standard Library version 0.13}
 
 \section{Metamorphisms}
+\label{sec:metamorphisms}
 
 A \emph{metamorphism}~\citep{Gibbons-metamorphisms} consumes a data structure to compute an intermediate value and then produces a new data structure using the intermediate value as the seed.
 Like \citet{Gibbons-metamorphisms}, we will focus on \emph{list metamorphisms}, i.e., metamorphisms consuming and producing lists.
@@ -308,26 +315,28 @@ data List (A : Set) : Set where
   []   : List A
   _∷_  : A → List A → List A
 \end{code}
-The |foldr| operator subsumes the elements (of type~|A|) of a list into a state (of type~|S|) using a ``right algebra'' |f : A → S → S| and an initial state |e : S|:
+The |foldr| operator subsumes the elements (of type~|A|) of a list into a state (of type~|S|) using a ``right algebra'' |_◁_ : A → S → S| and an initial (empty) state |e : S|:%
+\footnote{In \Agda, a name with underscores like |_◁_| can be used as an operator, and the underscores indicate where the arguments go.
+Also, in the type of a function, arguments wrapped in curly brackets are implicit, and can be left out (if they are inferable by \Agda) when applying the function.}
 \begin{code}
 foldr : {A S : Set} → (A → S → S) → S → List A → S
-foldr f e []        = e
-foldr f e (a ∷ as)  = f a (foldr f e as)
+foldr _◁_ e []        = e
+foldr _◁_ e (a ∷ as)  = a ◁ foldr f e as
 \end{code}
-With |foldr|, a list is consumed from the right.
-Dually, the |foldl| operator consumes a list from the left using a ``left algebra'' |f : S → A → S|:
+With |foldr|, a list is consumed from the right (cf.~wind direction).
+Dually, the |foldl| operator consumes a list from the left using a ``left algebra'' |_▷_ : S → A → S|:
 \begin{code}
 foldl : {A S : Set} → (S → A → S) → S → List A → S
-foldl f e []        = e
-foldl f e (a ∷ as)  = foldl f (f e a) as
+foldl _▷_ e []        = e
+foldl _▷_ e (a ∷ as)  = foldl _▷_ (e ▷ a) as
 \end{code}
-A list metamorphism can use either a |foldr| or a |foldl| in its consuming part, and we will see both kinds in the paper.
-We will refer to a list metamorphism using a |foldr| as a ``right metamorphism'', and one using a |foldl| as a ``left metamorphism''.
+A list metamorphism can use either |foldr| or |foldl| in its consuming part, and we will see both kinds in the paper.
+We will refer to a list metamorphism using |foldr| as a ``right metamorphism'', and one using |foldl| as a ``left metamorphism''.
 
 For the producing part of list metamorphisms, where we need to produce potentially infinite lists, in a total language like \Agda\ we can no longer use |List|, whose elements are necessarily finite; instead, we should switch to a \emph{codatatype} of \emph{colists}, which are potentially infinite.
 Dual to a datatype, which is defined by all the possible ways to \emph{construct} its elements, a codatatype is defined by all the possible ways to \emph{deconstruct} (or \emph{observe}) its elements.
 For a colist, we only need one way of deconstruction: exposing the colist's outermost structure, which is either empty or a pair of a head element and a tail colist.
-In \Agda\ this can be expressed as a coinductive record type |CoList| with only one field, which is a sum (empty or non-empty) structure; for cosmetic reasons, this sum structure is a datatype |CoListF| defined mutually recursively with |CoList|:
+In \Agda\ this can be expressed as a coinductive record type |CoList| with only one field, which is a sum (empty or non-empty) structure; for cosmetic reasons, this sum structure is defined (mutually recursively with |CoList|) as a datatype |CoListF|:
 \begin{code}
 mutual
 
@@ -350,8 +359,8 @@ decon (unfoldr g s) | just (b , s')  = b ∷ unfoldr g s'
 \end{code}
 The operator is defined with copattern matching~\citep{Abel-copatterns}:
 To define |unfoldr g s|, which is a colist, we need to specify what will result if we deconstruct it, i.e., what |decon (unfoldr g s)| will compute to.
-This depends on whether |g|~can produce anything from~|s|:
-if |g s| is |nothing|, then the resulting colist will be empty --- that is, |decon (unfoldr g s)| will compute to |[]|;
+This depends on whether |g|~can produce anything from~|s|, so, using the |with| construct, we introduce the expression |g s| as an additional ``argument'', on which we can then perform a pattern match.
+If |g s| is |nothing|, then the resulting colist will be empty --- that is, |decon (unfoldr g s)| will compute to |[]|;
 otherwise, |g s| is |just (b , s')| for some |b|~and~|s'|, and the resulting colist will have |b|~as its head and |unfoldr g s'| as its tail --- that is, |decon (unfoldr g s)| will compute to |b ∷ unfoldr g s'|.
 
 To be more concrete, let us describe our two examples --- base conversion for fractions and heapsort --- explicitly as metamorphisms.
@@ -363,23 +372,23 @@ To make the story short later,%
 \footnote{\citet{Gibbons-metamorphisms} gives a more complete story, where base conversion for fractions is first described as a right metamorphism with simple states (consisting of only an accumulator), and then transformed to a left metamorphism with more complex states.}
 we describe base conversion for fractions as a left metamorphism:
 \begin{code}
-unfoldr g_B ∘ foldl f_B init_B
+unfoldr g_C ∘ foldl _▷ᶜ_ e_C
 \end{code}
-and choose the state type to be |S_B LETEQ Rational × Rational × Rational|, which are triples of the form |(v , w_i , w_o)| where |v|~is an accumulator, |w_i| the weight of the incoming input digit, and |w_o| the weight of the outgoing output digit.
-The initial state |init_B| is |({-"0\;"-} , {-"\nicefrac{1}{\identifier{b_i}}\;"-} , {-"\;\nicefrac{1}{\identifier{b_o}}"-})|.
-The left algebra~|f_B| adds the the product of the current input digit and its weight to the accumulator, and updates the input weight in preparation for the next input digit:
+where the state type is |S_C LETEQ Rational × Rational × Rational|, which are triples of the form |(v , w_i , w_o)| where |v|~is an accumulator, |w_i| the weight of the incoming input digit, and |w_o| the weight of the outgoing output digit.
+The initial (empty) state |e_C| is |({-"0\;"-} , {-"\nicefrac{1}{\identifier{b_i}}\;"-} , {-"\;\nicefrac{1}{\identifier{b_o}}"-})|.
+The left algebra~|_▷ᶜ_| adds the the product of the current input digit and its weight to the accumulator, and updates the input weight in preparation for the next input digit:
 \begin{code}
-f_B : S_B → Nat → S_B
-f_B (v , w_i , w_o) d = ({-"\identifier{v} + d \times w_i\;"-} , {-"\nicefrac{w_i}{b_i}\;"-}, w_o)
+_▷ᶜ_ : S_C → Nat → S_C
+(v , w_i , w_o) ▷ᶜ d = ({-"\identifier{v} + d \times w_i\;"-} , {-"\nicefrac{w_i}{b_i}\;"-}, w_o)
 \end{code}
-while the right coalgebra~|g_B| produces an output digit and updates the accumulator and the next output weight if the accumulator is not yet zero:
+while the coalgebra~|g_C| produces an output digit and updates the accumulator and the next output weight if the accumulator is not yet zero:
 \begin{code}
-g_B (v , w_i , w_o) =  let  d  LETEQ {-"\;\lfloor\nicefrac{\identifier{v}\kern1pt}{\identifier{w_o}}\rfloor"-}; r  LETEQ {-"\;\identifier{v} - d \times \identifier{w_o}"-}
+g_C (v , w_i , w_o) =  let  d  LETEQ {-"\;\lfloor\nicefrac{\identifier{v}\kern1pt}{\identifier{w_o}}\rfloor"-}; r  LETEQ {-"\;\identifier{v} - d \times \identifier{w_o}"-}
                        in   if {-"\identifier{v} > 0\;"-} then  just (d , (r , w_i , {-"\;\nicefrac{\identifier{w_o}\kern1pt}{\identifier{b_o}}"-})) else  nothing
 \end{code}
-For the example $0.625_{10} = 0.101_2$, the metamorphism first consumes the input digits using~|f_B|:
+For the example $0.625_{10} = 0.101_2$, the metamorphism first consumes the input digits using~|_▷ᶜ_|\,:
 \[ (0\,,\;0.1\,,\;0.5) ~\stackrel{6}{\mapsto}~ (0.6\,,\;0.01\,,\;0.5) ~\stackrel{2}{\mapsto}~ (0.62\,,\;0.001\,,\;0.5) ~\stackrel{5}{\mapsto}~ (0.625\,,\;0.0001\,,\;0.5) \]
-and then produces the output digits using~|g_B|:
+and then produces the output digits using~|g_C|:
 \[ (0.625\,,\;10^{-4}\,,\;0.5) ~\stackrel{1}{\mapsto}~ (0.125\,,\;10^{-4}\,,\;0.25) ~\stackrel{0}{\mapsto}~ (0.125\,,\;10^{-4}\,,\;0.125) ~\stackrel{1}{\mapsto}~ (0\,,\;10^{-4}\,,\;0.0625) ~\not\mapsto \]
 
 \varparagraph{Heapsort.}
@@ -396,22 +405,23 @@ unfoldr popMin ∘ foldr push empty
 \end{code}
 
 \section{Specification of Metamorphisms in Types}
+\label{sec:spec}
 
 In the rest of this paper we will develop several \emph{metamorphic algorithms}, which compute a metamorphism but do not take the form of a fold followed by an unfold.
-Rather than proving that these algorithms satisfy their metamorphic specification, we will encode metamorphic specifications in types, such that any type-checked program is a correct metamorphic algorithm.
+Rather than proving that these algorithms satisfy their metamorphic specifications, we will encode metamorphic specifications in types, such that any type-checked program is a correct metamorphic algorithm.
 
 The encoding is based on \varcitet{McBride-ornaments}{'s} \emph{algebraic ornamentation}.
-Given a right algebra |f : A → S → S| and |e : S|, we can partition |List A| into a family of types |AlgList A f e : S → Set| indexed by~|S| such that (conceptually) every list~|as| is classified under |AlgList A f e (foldr f e as)|.
+Given a right algebra |_◁_ : A → S → S| and |e : S|, we can partition |List A| into a family of types |AlgList A f e : S → Set| indexed by~|S| such that (conceptually) every list~|as| falls into the type |AlgList A f e (foldr _◁_ e as)|.
 The definition of |AlgList| is obtained by ``fusing'' |foldr| into |List|:
 \begin{code}
-data AlgList (A {S} : Set) (f : A → S → S) (e : S) : S → Set where
+data AlgList (A {S} : Set) (_◁_ : A → S → S) (e : S) : S → Set where
   []   : AlgList A f e e
-  _∷_  : (a : A) → {s : S} → AlgList A f e s → AlgList A f e (f a s)
+  _∷_  : (a : A) → {s : S} → AlgList A f e s → AlgList A f e (a ◁ s)
 \end{code}
-The empty list is classified under |e LETEQ foldr f e []|.
-For the inductive case, if a tail~|as| is classified under~|s|, meaning that |foldr f e as LETEQ s|, then the whole list |a ∷ as| should be classified under |f a s| since |foldr f e (a ∷ as) = f a (foldr f e as) = f a s|.
+The empty list is classified under the index |e LETEQ foldr f e []|.
+For the cons case, if a tail~|as| is classified under~|s|, meaning that |foldr _◁_ e as LETEQ s|, then the whole list |a ∷ as| should be classified under |a ◁ s| since |foldr _◁_ e (a ∷ as) = a ◁ foldr _◁_ e as = a ◁ s|.
 
-Dually, given a coalgebra |g : S → Maybe (B × S)|, we can partition |CoList B| into a family of types |CoalgList B g : S → Set| such that a colist is classified under |CoalgList B g s| if it is unfolded from~|s| using~|g|.
+Dually, given a coalgebra |g : S → Maybe (B × S)|, we can partition |CoList B| into a family of types |CoalgList B g : S → Set| such that a colist falls into |CoalgList B g s| if it is unfolded from~|s| using~|g|.
 (Note that, extensionally, every |CoalgList B g s| has exactly one inhabitant; intensionally there may be different ways to describe/compute that inhabitant, though.)
 Again the definition of |CoalgList| is obtained by fusing |unfoldr| into |CoList|:
 \begin{code}
@@ -426,68 +436,77 @@ mutual
     ⟨_⟩     : {s : S} → g s ≡ nothing → CoalgListF B g s
     _∷⟨_⟩_  : (b : B) → {s s' : S} → g s ≡ just (b , s') → CoalgList B g s' → CoalgListF B g s
 \end{code}
-Deconstructing a colist of type |CoalgList B g s| can lead to two possible outcomes: the colist can be empty, in which case we know that |g s| is |nothing|, or it can be non-empty, in which case we know that |g s| produces the head element, and that the tail colist is unfolded from the next state~|s'| given by |g s|.
+Deconstructing a colist of type |CoalgList B g s| can lead to two possible outcomes: the colist can be empty, in which case we know that |g s| is |nothing|, or it can be non-empty, in which case we know that |g s| produces the head element, and that the tail colist is unfolded from the next state~|s'| produced by |g s|.
 
 Let |A|, |B|, |S : Set| throughout the rest of this paper%
 \footnote{That is, think of the code in the rest of this paper as contained in a module with parameters |A|, |B|, |S : Set|.}
 --- we will assume that |A|~is the type of input elements, |B|~the type of output elements, and |S|~the type of states.
-Given a right algebra |f : A → S → S|, |e : S|, and a coalgebra |g : S → Maybe (B × S)|, any program of type:
+We will also consistently let |_◁_ : A → S → S| denote a right algebra, |_▷_ : S → A → S| a left algebra, |e : S| an initial (empty) state, and |g : S → Maybe (B × S)| a coalgebra.
+Now any program of type:
 \begin{code}
-{s : S} → AlgList A f e s → CoalgList B g s
+{s : S} → AlgList A _◁_ e s → CoalgList B g s
 \end{code}
-implements the right metamorphism |unfoldr g ∘ foldr f e|, since the indexing enforces that the input list folds to~|s|, from which the output colist is then unfolded.
+implements the right metamorphism |unfoldr g ∘ foldr _◁_ e|, since the indexing enforces that the input list folds to~|s|, from which the output colist is then unfolded.
 
 What about left metamorphisms?
-Thankfully, we do not need to define another variant of |AlgList| due to an old trick that expresses a |foldl| in terms of a |foldr|.
-Given a left algebra |f : S → A → S|, |e : S|, and |as : List A|, think of the work of |foldl f e as| as (i)~partially applying |flip f : A → S → S| (where |flip f x y = f y x|) to turn every element of~|as| to a state transformation of type |S → S|, (ii)~composing the state transformations from left to right, and finally (iii)~applying the resulting composite transformation to~|e|.
+Thankfully, we do not need to define another variant of |AlgList| due to an old trick that expresses |foldl| in terms of |foldr|.
+Given a list |as : List A|, think of the work of |foldl _▷_ e as| as (i)~partially applying |flip _▷_ : A → S → S| (where |flip f x y LETEQ f y x|) to every element of~|as| to obtain state transformations of type |S → S|, (ii)~composing the state transformations from left to right, and finally (iii)~applying the resulting composite transformation to~|e|.
 The left-to-right order appears only in step~(ii), which, in fact, can also be performed from right to left since function composition is associative.
-In short, we have:
+Formally, we have:
 \begin{code}
-foldl f e as = foldr (foldl-alg f) id as e
+foldl _▷_ e as = foldr (left-alg _▷_) id as e
 \end{code}
 where
 \begin{code}
-foldl-alg : {A S : Set} → (S → A → S) → A → (S → S) → (S → S)
-foldl-alg f a t = t ∘ flip f a
+left-alg : {A S : Set} → (S → A → S) → A → (S → S) → (S → S)
+left-alg _▷_ a t = t ∘ flip _▷_ a
 \end{code}
 The type of left metamorphic algorithms can then be specified as:
 \begin{code}
-{h : S → S} → AlgList A (foldl-alg f) id h → (s : S) → CoalgList B g (h s)
+{h : S → S} → AlgList A (left-alg _▷_) id h → (s : S) → CoalgList B g (h s)
 \end{code}
 which says that if the input list folds to a state transformation~|h| and the initial state is~|s|, then the output colist should be unfolded from |h s|.
 
 \section{Definitional Implementation of Metamorphisms}
 \label{sec:cbp}
 
-Let |f : S → A → S| and |g : S → Maybe (B × S)|.
-
-\todo[inline]{This exposes the state, which can participate in the computation.}
-
-As a sanity check, we start from the most straightforward algorithm that strictly follows the definition of metamorphisms, \textbf{c}onsuming all inputs \textbf{b}efore \textbf{p}roducing outputs:
+To warm up, let us start from the left metamorphic type and implement the most straightforward algorithm that strictly follows the definition of metamorphisms, \textbf{c}onsuming all inputs \textbf{b}efore \textbf{p}roducing outputs:
 \begin{code}
-cbp : {h : S → S} → AlgList A (foldl-alg f) id h → (s : S) → CoalgList B g (h s)
-cbp as s = (GOAL(CoalgList B g (h s))(0))
+cbp : {h : S → S} → AlgList A (left-alg _▷_) id h → (s : S) → CoalgList B g (h s)
+cbp as(CXT(AlgList A (left-alg _▷_) id h)) s = (GOAL(CoalgList B g (h s))(0))
 \end{code}
-The \highlight{goal}{\text{green-shaded part}} is an \emph{interaction point} or a \emph{goal}, which is a hole in the program to be completed.%
-\todo{more explanation}
+\Agda\ provides an interactive development environment as an emacs mode.
+In this environment, we can leave ``holes'' in programs and fill them later, usually with \Agda's help.
+Such a hole is called an \emph{interaction point} or a \emph{goal}, of which the \highlight{goal}{\text{green-shaded part}} above is an example.
+At goals, \Agda\ can be instructed to provide various information and even perform some program synthesis.
+One most important piece of information for a goal is its expected type, which we always display in curly brackets.
+Goals are numbered when they need to be referred to in the text.
+At goals, we can also query the types of the variables in scope; whenever the type of a variable needs to be displayed, we will annotate the variable with its type in \highlight{cxt}{\text{yellow-shaded subscript}} (which is not part of the program text).
+In the partial program above, we give the type of~|as| because the goal type refers to~|h|, which is the index in the type of~|as|.
 
-We are trying to consume the input list first, so we pattern match on the argument |as| to see if there is anything to consume:
+Back to the program itself.
+We are trying to consume the input list first, so we pattern match on the argument |as| to see if there is anything to consume.
+In \Agda\ this is as easy as putting |as| into Goal~0 and firing a ``case splitting'' command (\texttt{C-c C-c}); the program will then be split into two clauses, listing all possible cases of~|as|:
 \begin{code}
-cbp []        s = (GOAL(CoalgList B g s)(1))
-cbp (a ∷ as)  s = (GOAL(CoalgList B g (h' (f s a)))(2))
+cbp []                                            s = (GOAL(CoalgList B g s)(1))
+cbp (a ∷ as(CXT(AlgList A (left-alg _▷_) id h)))  s = (GOAL(CoalgList B g (h (f s a)))(2))
 \end{code}
+Now Goal~0 is gone, and two new goals appear.
+Note that the expected types of the two new goals have changed: at Goal~1, for example, we see that the output colist should be unfolded directly from the initial state~|s| since the input list is empty.
+By providing sufficient type information, \Agda\ can keep track of such relationship for us!
+We continue to interact with and evolve these two new goals.
 
 If there is something to consume, that is, the input list is non-empty, we go into Goal~2, where we keep consuming the tail |as| but from a new state:
 \begin{code}
 cbp (a ∷ as) s = cbp as (GOAL(S)(3))
 \end{code}
-What is this new state? It should be the one obtained by merging~|a| into~|s|, i.e., |f s a|.
-\Agda\ knows this too, in fact --- firing Auto (\texttt{C-c C-a}) at Goal~3 yields:
+What is this new state? It should be the one obtained by subsuming~|a| into~|s|, i.e., |s ▷ a|.
+\Agda\ knows this too, in fact --- firing the ``Auto'' command (\texttt{C-c C-a}) at Goal~3 yields:
 \begin{code}
-cbp (a ∷ as) s = cbp as (f s a)
+cbp (a ∷ as) s = cbp as (s ▷ a)
 \end{code}
 
-If there is nothing more to consume, that is, the input list is empty, we go into Goal~1, where we should produce the output colist, to specify which we should say what will result if we observe/|decon|struct the colist:
+If there is nothing more to consume, that is, the input list is empty, we go into Goal~1, where we should produce the output colist, to specify which we should say what will result if we |decon|struct the colist:
 \begin{code}
 decon (cbp [] s) = (GOAL(CoalgListF B g s)(4))
 \end{code}
@@ -513,21 +532,21 @@ decon (cbp [] s) with g s         | inspect g s
 decon (cbp [] s) | nothing        | [ eq(CXT(g s ≡ nothing))        ] = ⟨ (GOAL(g s ≡ nothing)(7)) ⟩
 decon (cbp [] s) | just (b , s')  | [ eq(CXT(g s ≡ just (b , s')))  ] = b ∷⟨ (GOAL(g s ≡ just (b , s'))(8)) ⟩ cbp [] s'
 \end{code}
-where, in each case of the |with|-matching, we annotate |eq| with its type in \highlight{cxt}{\text{yellow-shaded subscript}} (which is not part of the program text).
-\todo[inline]{Expected, even boring, typical type-directed programming}
+Both goals can now be discharged with |eq|, and we arrive at a complete program, shown in \autoref{fig:cbp}.
+As explained in \autoref{sec:spec}, this program is a correct metamorphic algorithm because it type-checks.
 
 \begin{figure}
 \beforefigurecode
 \begin{code}
 module ConsumingBeforeProducing
-  (f : S → A → S) (g : S → Maybe (B × S))
+  (_▷_ : S → A → S) (g : S → Maybe (B × S))
   where
 
-  cbp : {h : S → S} → AlgList A (foldl-alg f) id h → (s : S) → CoalgList B g (h s)
+  cbp : {h : S → S} → AlgList A (left-alg _▷_) id h → (s : S) → CoalgList B g (h s)
   decon (cbp [] s) with g s         | inspect g s
   decon (cbp [] s) | nothing        | [ eq ] = ⟨ eq ⟩
   decon (cbp [] s) | just (b , s')  | [ eq ] = b ∷⟨ eq ⟩ cbp [] s'
-  cbp (a ∷ as) s = cbp as (f s a)
+  cbp (a ∷ as) s = cbp as (s ▷ a)
 \end{code}
 \caption{Definitional implementation of metamorphisms}
 \label{fig:cbp}
@@ -541,7 +560,7 @@ As \citet{Gibbons-metamorphisms} noted, (list) metamorphisms in general cannot b
 Again let |f : S → A → S| and |g : S → Maybe (B × S)|.
 We implement a different algorithm with the same type:
 \begin{code}
-stream : {h : S → S} → AlgList A (foldl-alg f) id h → (s : S) → CoalgList B g (h s)
+stream : {h : S → S} → AlgList A (left-alg f) id h → (s : S) → CoalgList B g (h s)
 stream as s = (GOAL(CoalgList B g (h s))(0))
 \end{code}
 
@@ -568,7 +587,7 @@ decon (stream (a ∷ as)  s) | nothing | [ eq ] = decon (stream as (f s a))
 Goal~2 is the interesting case.
 Using~|g|, from the current state~|s| we can produce~|b|, which we set as the head of the output colist, and advance to a new state~|s'|, from which we produce the tail of the colist:
 \begin{code}
-decon (stream as(CXT(AlgList A (foldl-alg f) id h)) s) | just (b , s') | [ eq(CXT(g s ≡ just (b , s'))) ] =
+decon (stream as(CXT(AlgList A (left-alg f) id h)) s) | just (b , s') | [ eq(CXT(g s ≡ just (b , s'))) ] =
   b ∷⟨ (GOAL(g (h s) ≡ just (b , h s'))(5)) ⟩ stream as s'
 \end{code}
 Now we get a non-trivial proof obligation (Goal~5) --- what does it mean?
@@ -622,9 +641,8 @@ From the initial state~|s|, we can either
 If the first route is possible, the second route should also be possible, and the outcomes should be the same --- doing production using~|g| and consumption using~|h| in whichever order should emit the same element and reach the same final state.
 This cannot be true in general, and should be formulated as a condition of the streaming algorithm.
 
-The above commutativity~(\ref{eq:streaming-big-step}) of |g|~and~|h| looks more like a derived consequence rather than a basic condition, though ---
-it is commutativity of one step of production (using~|g|) and multiple steps of consumption (of the entire list, using~|h|), whereas the algorithm is specified in terms of |g|~and~|f|, which are single-step production and consumption.
-Hence it is more natural to require that |g|~and~|f| commute instead:
+The above commutativity~(\ref{eq:streaming-big-step}) of |g|~and~|h| is commutativity of one step of production (using~|g|) and multiple steps of consumption of a particular list (using~|h|).
+If we require instead that |g|~and~|f| commute, this commutativity of single-step production and consumption will be independent from the input list and become easier to verify:
 \begin{equation}
 \begin{tikzpicture}[x=12em,y=4em,baseline=(u.base)]
 \node(x) [anchor=center] {|s|};
@@ -651,7 +669,7 @@ All it takes should be a straightforward induction to extend the streaming condi
 We know that we need a helper function |streaming-lemma| that performs induction on |as| and uses |eq| as a premise; by filling |streaming-lemma as eq| into Goal~5 and firing a command (\texttt{C-c C-h}), \Agda\ can generate a type for |streaming-lemma|, which, after removing some over-generalisations and unnecessary definition expansions, is:
 \begin{code}
 streaming-lemma :  {b : B} {s s' : S} {h : S → S} →
-                   AlgList A (foldl-alg f) id h → g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
+                   AlgList A (left-alg f) id h → g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
 streaming-lemma as eq = (GOAL(g (h s) ≡ just (b , h s'))(6))
 \end{code}
 \Agda\ then accepts |streaming-lemma as eq| as a type-correct term for Goal~5, completing the definition of |stream|.
@@ -678,11 +696,11 @@ module Streaming
   where
 
   streaming-lemma :  {b : B} {s s' : S} {h : S → S} →
-                     AlgList A (foldl-alg f) id h → g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
+                     AlgList A (left-alg f) id h → g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
   streaming-lemma []        eq = eq
   streaming-lemma (a ∷ as)  eq = streaming-lemma as (streaming-condition eq)
 
-  stream : {h : S → S} → AlgList A (foldl-alg f) id h → (s : S) → CoalgList B g (h s)
+  stream : {h : S → S} → AlgList A (left-alg f) id h → (s : S) → CoalgList B g (h s)
   decon (stream as        s) with g s         | inspect g s
   decon (stream []        s) | nothing        | [ eq ] = ⟨ eq ⟩
   decon (stream (a ∷ as)  s) | nothing        | [ eq ] = decon (stream as (f s a))
