@@ -784,10 +784,10 @@ Surprisingly, \citet{Nakano-jigsaw} has such a computation model, in which it is
 
 In \varcitet{Nakano-jigsaw}{'s} model, a computation transforms a |List A| to a |CoList B|, and to program its behaviour, we need to provide a suitable function |piece : A × B → B × A|.
 \citet{Nakano-jigsaw} neatly visualises his model as a jigsaw puzzle.
-The |piece| function can be thought of as describing a set of jigsaw pieces of this shape:
+The |piece| function can be thought of as describing a set of jigsaw pieces:
 \[ \includegraphics{figs/piece-crop.pdf} \]
 In each piece, the horizontal edges are associated with a value of type~|A|, and the vertical edges with a value of type~|B|.
-When assembling pieces, a tab and a blank fit together exactly when their values coincide.
+Two pieces fit together exactly when the values on their adjacent edges coincide.
 Moreover, the values on the top and right edges should determine those on the left and bottom edges, and the |piece| function records the mappings for all the pieces --- the piece above, for example, corresponds to the mapping |piece (a , b) LETEQ (b' , a')|.
 
 Below is an illustration of an ongoing computation:
@@ -797,7 +797,7 @@ Below is an illustration of an ongoing computation:
 \raisebox{-.5\height}{\includegraphics{figs/board-filling-crop.pdf}}
 \quad\leadsto\quad
 \cdots \]
-Given an input list, we start with an empty board with its top boundary initialised to the input elements and its right boundary to some special ``flat'' value.
+Given an input list, we start from an empty board with its top boundary initialised to the input elements and its right boundary to some special ``flat'' value.
 Then we put in pieces to fill the board:
 Whenever a top edge and a right edge is known, we consult the |piece| function to find the unique fitting piece and put it in.
 Initially the only place we can put in a piece is the top-right corner, but as we put in more pieces, the number of choices will increase --- in the board on the right, for example, we can choose one of the two dashed places to put in the next piece.
