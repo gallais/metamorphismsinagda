@@ -140,6 +140,28 @@ module _ {A B S : Set} where
     decon (jigsaw []) = ⟨ nothing-from-e ⟩
     jigsaw (a ∷ as) = fill a (jigsaw as)
 
+  module Jigsaw-Left-Infinite
+    (_▷_ : S → A → S) (g : S → B × S)
+    (piece : B × A → A × B)
+    (jigsaw-condition : {a : A} {b : B} {s s' : S} →
+                        g s ≡ (b , s') →
+                        let (a' , b') = piece (b , a)
+                        in  g (s ▷ a) ≡ (b' , s' ▷ a'))
+    where
+
+    fillₗᵢ : {s : S} → CoalgList B (just ∘ g) s → (a : A) → CoalgList B (just ∘ g) (s ▷ a)
+    decon (fillₗᵢ bs a) with decon bs
+    decon (fillₗᵢ bs a) | ⟨ () ⟩
+    decon (fillₗᵢ bs a) | b ∷⟨ eq ⟩ bs' =
+      let (a' , b') = piece (b , a)
+      in  b' ∷⟨ cong just (jigsaw-condition (cong-from-just eq)) ⟩ fillₗᵢ bs' a'
+
+    jigsawₗᵢ : {s : S} → CoalgList B (just ∘ g) s →
+              {h : S → S} → AlgList A (left-alg _▷_) id h → CoalgList B (just ∘ g) (h s)
+    jigsawₗᵢ bs []       = bs
+    jigsawₗᵢ bs (a ∷ as) = jigsawₗᵢ (fillₗᵢ bs a) as
+
+
 -- splitAlgList : {A X : Set} {f : ListF A X → X} {x : X} → AlgList A f x → Σ[ as ∈ List A ] foldr' f as ≡ x
 -- splitAlgList         []       = [] , refl
 -- splitAlgList {f = f} (a ∷ as) = Product.map (a ∷_) (cong (f ∘ cons a)) (splitAlgList as)

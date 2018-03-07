@@ -364,7 +364,7 @@ decon (unfoldr g s) | just (b , s')  = b ∷ unfoldr g s'
 \end{code}
 The operator is defined with copattern matching~\citep{Abel-copatterns}:
 To define |unfoldr g s|, which is a colist, we need to specify what will result if we deconstruct it, i.e., what |decon (unfoldr g s)| will compute to.
-This depends on whether |g|~can produce anything from~|s|, so, using the |with| construct, we introduce the expression |g s| as an additional ``argument'', on which we can then perform a pattern match.
+This depends on whether |g|~can produce anything from~|s|, so, using the |with| construct, we introduce |g s| as an additional ``argument'', on which we can then perform a pattern match.
 If |g s| is |nothing|, then the resulting colist will be empty --- that is, |decon (unfoldr g s)| will compute to |[]|;
 otherwise, |g s| is |just (b , s')| for some |b|~and~|s'|, and the resulting colist will have |b|~as its head and |unfoldr g s'| as its tail --- that is, |decon (unfoldr g s)| will compute to |b ∷ unfoldr g s'|.
 
@@ -726,8 +726,8 @@ streaming-lemma (a ∷ as)  eq = streaming-lemma as (streaming-condition eq)
 The complete program is shown in \autoref{fig:stream}.
 
 \varparagraph{Aside: streaming base conversion for fractions.}
-We have (re-)discovered the streaming condition, but does it actually hold for the base conversion metamorphism |unfoldr g_C ∘ foldl (▷ᶜ) e_C| given in \autoref{sec:metamorphisms}?
-Sadly, no.
+We have (re)discovered the streaming condition, but does it actually hold for the base conversion metamorphism |unfoldr g_C ∘ foldl (▷ᶜ) e_C| given in \autoref{sec:metamorphisms}?
+Actually, no.
 The problem is that |g_C|~can be too eager to produce an output digit.
 In $0.625_{10} = 0.101_2$, for example, after consuming the first decimal digit~$6$, we can safely use~|g_C| to produce the first two binary digits $1$~and~$0$, reaching the state $(0.1\,,\;0.01\,,\;0.125)$.
 From this state, |g_C|~will produce a third binary digit~$0$, but this can be wrong if there are more input digits to consume --- indeed, in our example the next input digit is~$5$, and the accumulator will go up to $0.1 + 5 \times 0.01 = 0.15$, exceeding the next output weight $0.125$, and hence the next output digit should be~$1$ instead.
@@ -833,7 +833,7 @@ We therefore introduce the following function |fillᵢₕ| for filling a row:
 fillᵢₕ : {s : S} → AlgList A (◁) e s → B × Σ[ t ∈ S ] AlgList A (◁) e t
 fillᵢₕ as = (GOAL(B × Σ[ t ∈ S ] AlgList A (◁) e t)(1))
 \end{code}
-We do not know (or cannot easily specify) the index~|t| in the type of the output |AlgList|, so the index is simply existentially quantified.
+We do not know (or cannot easily specify) the index~|t| in the type of the new |AlgList|, so the index is simply existentially quantified.
 The job of |jigsawᵢₕ|, then, is to call |fillᵢₕ| repeatedly to cover the board.
 We revise Goal~0 into:
 \begin{code}
@@ -851,11 +851,11 @@ jigsawᵢₕ : {s : S} → AlgList A (◁) e s → CoalgList B (just ∘ g∞) s
 decon (jigsawᵢₕ as) with fillᵢₕ as
 decon (jigsawᵢₕ as) | (b , _ , as' , eq) = b ∷⟨ cong just eq ⟩ jigsawᵢₕ as'
 \end{code}
-(The combinator |cong just| has type |{x x' : X} → x ≡ x' → just x ≡ just x'|.)
+(The combinator `|cong just|' has type |{X : Set} {x x' : X} → x ≡ x' → just x ≡ just x'|.)
 
 \varparagraph{The road not taken.}
 From Goal~2, there seems to be another way forward: the equality says that the output vertical edge~|b| and the index~|t| in the type of~|as'| are determined by |g∞ s|, so |jigsawᵢₕ| could have computed |g∞ s| and obtained |b|~and~|t| directly!
-However, recall that the characteristic of the jigsaw model is that computation proceeds by converting input list elements directly into output colist elements without involving states, which only appear in the specifications.
+However, recall that the characteristic of the jigsaw model is that computation proceeds by converting input list elements directly into output colist elements without involving the states appearing in the specifications.
 In our setting, this means that states only appear in the function types, not the function bodies, so having |jigsawᵢₕ| invoke |g s| would deviate from the jigsaw model.
 Instead, |jigsawᵢₕ| invokes |fillᵢₕ|, which will only use |piece| to compute~|b|.
 (It would probably be better if we declared the argument~|s| in the metamorphic type as irrelevant to enforce that |s|~does not participate in the computation; this irrelevance declaration would then need to be propagated to related parts in |AlgList| and |CoalgList|, though, which we are trying to avoid.)
@@ -913,14 +913,20 @@ Following what we did in \autoref{sec:streaming}, a commutative state transition
 where |(b' , a') = piece (a , b)|.
 This is again a kind of commutativity of production and consump\-tion, but unlike the streaming condition~(\ref{eq:streaming}) in \autoref{sec:streaming}, the elements produced and consumed can change after swapping the order of production and consumption.
 Given any top and right edges |a|~and~|b|, the |piece| function should be able to find the left and bottom edges |b'|~and~|a'| to complete the commutative diagram.
-This constitutes a specification for |piece|, and we call it the \emph{jigsaw condition}:
+This constitutes a specification for |piece|, and, following \citet{Nakano-jigsaw} (but not strictly), we call it the \emph{jigsaw condition}:
 \begin{code}
 jigsaw-conditionᵢ :  {a : A} {b : B} {s s' : S} →
                      g∞ s ≡ (b , s') → let (b' , a') LETEQ piece (a , b) in g∞ (a ◁ s) ≡ (b' , a' ◁ s')
 \end{code}
-Adding |jigsaw-conditionᵢ| as the final assumption, we can fill |jigsaw-conditionᵢ eq| into Goal~8 and complete the program.
+Adding |jigsaw-conditionᵢ| as the final assumption, we can fill |jigsaw-conditionᵢ eq| into Goal~8 and complete the program, which is shown in \autoref{fig:jigsaw-infinite-horizontal}.
 
-The whole program is shown in \autoref{fig:jigsaw-infinite-horizontal}.
+We are getting to see a connection between metamorphic computations and the jigsaw model.
+Definitionally, a metamorphism folds the input list to a state, and then produces the output elements while updating the state.
+In the jigsaw model, and with the horizontal placement strategy, rather than folding the input list to a ``compressed'' state, we use the whole list as an ``uncompressed'' state, and ensure that the production process using uncompressed states simulates the definitional one using compressed states.
+The type of |fillᵢₕ| makes this clear:
+The produced element~|b| is exactly the one that would have been produced from the compressed state~|s| obtained by folding the old list.
+Then, on the compressed side, the state~|s| is updated to~|t|; correspondingly, on the uncompressed side, the old list is updated to a new list that folds to~|t|.
+The jigsaw condition ensures that this relationship between compressed and uncompressed states can be maintained by placing rows of jigsaw pieces.
 
 \varparagraph{Aside: deriving the \textit{piece} function for heapsort using the jigsaw condition.}
 For the heapsort metamorphism, consuming an element is pushing it into a heap, and producing an element is popping the minimum element from a heap.
@@ -955,15 +961,16 @@ module Jigsaw-Infinite-Horizontal
 
 \subsubsection{Vertical Placement}
 
-In contrast to streaming metamorphisms (\autoref{sec:streaming}), where we need to be cautious about producing an element because once an element is produced we can no longer change it, one way of thinking about metamorphic computations in the jigsaw model is that the entire output colist is produced from the start and constantly updated:
+There is another obvious placement strategy --- the vertical one, where we place one column of jigsaw pieces at a time.
+This corresponds to another way of thinking about metamorphic computations in the jigsaw model.
+In contrast to streaming metamorphisms (\autoref{sec:streaming}), where we need to be cautious about producing an element because once an element is produced we can no longer change it, computing metamorphisms in the jigsaw model with the vertical placement strategy is like having an entire output colist right from the start and then updating it:
 \begin{itemize}
 \item initially we start with a colist of |straight| edges, which is unfolded from the empty state~|e|;
-\item inductively, if we have a colist unfolded from some state~|s| and an input element~|a| comes in, we place a column of jigsaw pieces to update the colist, and the result, due to the jigsaw condition, is a colist unfolded from the new state |a ◁ s|;
+\item inductively, if we have a colist unfolded from some state~|s|, and an input element~|a| comes in, we place a column of jigsaw pieces to update the colist, and the result --- due to the jigsaw condition --- is a colist unfolded from the new state |a ◁ s|;
 \item finally, after all elements of the input list~|as| are consumed, we get a colist unfolded from |foldr (◁) e as|.
 \end{itemize}
-This is a vertical placement strategy, which we should be able to program under the same conditions that we discovered when using the horizontal placement strategy.
-
-We start from exactly the same type as |jigsawᵢₕ|:
+And we should be able to program this strategy as well!
+Starting from exactly the same type as |jigsawᵢₕ|:
 \begin{code}
 jigsawᵢᵥ : {s : S} → AlgList A (◁) e s → CoalgList B (just ∘ g∞) s
 jigsawᵢᵥ as(CXT(AlgList A (◁) e s)) = (GOAL(CoalgList B (just ∘ g∞) s)(0))
