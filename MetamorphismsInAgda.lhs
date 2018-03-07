@@ -134,7 +134,7 @@
 \newcommand{\definitionautorefname}{Definition}
 \newcommand{\exampleautorefname}{Example}
 
-\newcommand{\varparagraph}[1]{\par\textbf{#1}\hspace{.5em}} % {\textit{#1}\hspace{.5em}}
+\newcommand{\varparagraph}[1]{\par\ensuremath{\blacktriangleright}~\textit{#1}\hspace{.5em}} % {\textit{#1}\hspace{.5em}}
 \newcommand{\awa}[2]{\mathrlap{#2}\phantom{#1}} % as wide as
 \newcommand{\varawa}[2]{\phantom{#1}\mathllap{#2}}
 \newcommand{\varcitet}[3][]{\citeauthor{#2}#3~[\ifthenelse{\isempty{#1}}{\citeyear{#2}}{\citeyear[#1]{#2}}]}
@@ -487,7 +487,7 @@ In this environment, we can leave ``holes'' in programs and fill or refine them,
 Such a hole is called an \emph{interaction point} or a \emph{goal}, of which the \highlight{goal}{\text{green-shaded part}} above is an example.
 At goals, \Agda\ can be instructed to provide various information and even perform some program synthesis.
 One most important piece of information for a goal is its expected type, which we always display in curly brackets.
-Goals are numbered when they need to be referred to in the text.
+Goals are numbered so they can be referred to in the text.
 At goals, we can also query the types of the variables in scope; whenever the type of a variable needs to be displayed, we will annotate the variable with its type in \highlight{cxt}{\text{yellow-shaded subscript}} (which is not part of the program text).
 In the program above, we annotate~|as| with its type because the expected type at Goal~0 refers to~|h|, which is the index in the type of~|as|.
 
@@ -768,7 +768,7 @@ module Streaming
 \label{fig:stream}
 \end{figure}
 
-\section{Jigsaw Metamorphisms: The Infinite Case}
+\section{Jigsaw Metamorphisms}
 \label{sec:jigsaw-infinite}
 
 Let us now turn to right metamorphisms.
@@ -797,83 +797,87 @@ Below is an illustration of an ongoing computation:
 \raisebox{-.5\height}{\includegraphics{figs/board-filling-crop.pdf}}
 \quad\leadsto\quad
 \cdots \]
-Given an input list, we start from an empty board with its top boundary initialised to the input elements and its right boundary to some special ``flat'' value.
+Given an input list, we start from an empty board with its top boundary initialised to the input elements and its right boundary to some special ``straight'' value.
 Then we put in pieces to fill the board:
 Whenever a top edge and a right edge is known, we consult the |piece| function to find the unique fitting piece and put it in.
 Initially the only place we can put in a piece is the top-right corner, but as we put in more pieces, the number of choices will increase --- in the board on the right, for example, we can choose one of the two dashed places to put in the next piece.
-Eventually we will get a straight left boundary, and the values on the left boundary are the output elements.
+Eventually we will reach the left boundary, and the values on the left boundary are the output elements.
 Although we can put in the pieces in a nondeterministic order and even in parallel, the final board configuration is determined by the initial boundary, and thus the output elements are produced deterministically.
 
-For a concrete example, the heapsort metamorphism can be computed in the jigsaw model with |piece (x , y) LETEQ (min x y , max x y)|.
+For a concrete example, the heapsort metamorphism can be computed in the jigsaw model with |piece (a , b) LETEQ (min a b , max a b)|.
 The board sorting the list |{-"2\;"-} ∷ {-"3\;"-} ∷ {-"1\;"-} ∷ []| is shown below:
-\[ \includegraphics{figs/heapsort-piece-crop.pdf} \qquad\qquad \raisebox{-6mm-.975pt}{\includegraphics{figs/heapsort-crop.pdf}} \]
-As remarked by \citet{Nakano-jigsaw}, this transforms heapsort into ``a form of parallel bubble sort'', which is very different from the original metamorphic computation --- in particular, heaps are nowhere to be seen.
+\[ \includegraphics{figs/heapsort-piece-crop.pdf}
+\qquad\qquad
+\raisebox{-6mm-.975pt}{\includegraphics{figs/heapsort-crop.pdf}} \]
+\citet{Nakano-jigsaw} remarks that this transforms heapsort into ``a form of parallel bubble sort'', which is very different from the original metamorphic computation --- in particular, heaps are nowhere to be seen.
 
 In general, how is the jigsaw model related to metamorphisms, and under what conditions does the jigsaw model compute metamorphisms?
 Again, we will figure out the answers by trying to program jigsaw computations with metamorphic types in \Agda.
-In this section, let us first look at a simpler case where the output colist is always infinite --- that is, the coalgebra used in our metamorphic type is |just ∘ g∞| where |g∞ : S → B × S|.
-(For heapsort, |g∞|~is an adapted version of |popMin| that pops out~$\infty$ when the input heap is empty, so the output colist is the sorted input list followed by an infinite number of $\infty$'s.)
 
-\subsection{Horizontal Placement}
+\subsection{The Infinite Case}
 
+Let us first look at a simpler case where the output colist is always infinite; that is, the coalgebra used in the metamorphic type is |just ∘ g∞| where |g∞ : S → B × S| --- for heapsort, |g∞|~is an adapted version of |popMin| such that popping from the empty heap returns~$\infty$ and the empty heap itself, so the output colist is the sorted input list followed by an infinite number of $\infty$'s.
 
+\subsubsection{Horizontal Placement}
+
+We start by writing down the metamorphic type:
 \begin{code}
 jigsawᵢₕ : {s : S} → AlgList A (◁) e s → CoalgList B (just ∘ g∞) s
 jigsawᵢₕ as(CXT(AlgList A (◁) e s)) = (GOAL(CoalgList B (just ∘ g∞) s)(0))
 \end{code}
-
-Our strategy is to place one row of jigsaw pieces at a time.
-Placing a row is equivalent to transforming an input list |as| into a new one |as'| and also a vertical edge~|b|.
-\todo[inline]{illustration}
+One possible placement strategy is to place one row of jigsaw pieces at a time.
+Placing a row is equivalent to transforming an input list~|as| into a new one~|as'| and also a vertical edge~|b|:
+\[ \includegraphics{figs/row-crop.pdf} \]
 We therefore introduce the following function |fillᵢₕ| for filling a row:
 \begin{code}
 fillᵢₕ : {s : S} → AlgList A (◁) e s → B × Σ[ t ∈ S ] AlgList A (◁) e t
-fillᵢₕ as = (GOAL'(B × Σ[ t ∈ S ] AlgList A (◁) e t))
+fillᵢₕ as = (GOAL(B × Σ[ t ∈ S ] AlgList A (◁) e t)(1))
 \end{code}
 We do not know (or cannot easily specify) the index~|t| in the type of the output |AlgList|, so the index is simply existentially quantified.
-The job of |jigsawᵢₕ|, then, is to call |fillᵢₕ| repeatedly to cover the board:
+The job of |jigsawᵢₕ|, then, is to call |fillᵢₕ| repeatedly to cover the board.
+We revise Goal~0 into:
 \begin{code}
-jigsawᵢₕ : {s : S} → AlgList A (◁) e s → CoalgList B (just ∘ g∞) s
-decon (jigsawᵢₕ as) with fillᵢₕ as
-decon (jigsawᵢₕ as) | (b , t , as') = b ∷⟨ (GOAL(just (g∞ s) ≡ just (b , t))(1)) ⟩ jigsawᵢₕ as'
+decon (jigsawᵢₕ as(CXT(AlgList A (◁) e s))) with fillᵢₕ as
+decon (jigsawᵢₕ as) | (b , t , as') = b ∷⟨ (GOAL(just (g∞ s) ≡ just (b , t))(2)) ⟩ jigsawᵢₕ as'
 \end{code}
-Goal~1 demands an equality linking |s|~and~|t|, which are the input and output indices of |fillᵢₕ|.
+Goal~2 demands an equality linking |s|~and~|t|, which are the input and output indices of |fillᵢₕ|.
 This suggests that |fillᵢₕ| is responsible for not only computing~|t| but also establishing the relationship between |t|~and~|s|.
-We therefore add the equality to the result type of |fillᵢₕ|, and discharge Goal~1 with the equality proof that will be produced by |fillᵢₕ|:
+We therefore add the equality to the result type of |fillᵢₕ|, and discharge Goal~2 with the equality proof that will be produced by |fillᵢₕ|:
 \begin{code}
 fillᵢₕ : {s : S} → AlgList A (◁) e s → Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ s ≡ (b , t)
-fillᵢₕ as = (GOAL(Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ s ≡ (b , t))(2))
+fillᵢₕ as = (GOAL(Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ s ≡ (b , t))(1))
 
 jigsawᵢₕ : {s : S} → AlgList A (◁) e s → CoalgList B (just ∘ g∞) s
 decon (jigsawᵢₕ as) with fillᵢₕ as
 decon (jigsawᵢₕ as) | (b , _ , as' , eq) = b ∷⟨ cong just eq ⟩ jigsawᵢₕ as'
 \end{code}
+(The combinator |cong just| has type |{x x' : X} → x ≡ x' → just x ≡ just x'|.)
 
 \varparagraph{The road not taken.}
-From Goal~1, there seems to be another way forward: the equality says that the output vertical edge~|b| and the index~|t| in the type of~|as'| are determined by |g∞ s|, so |jigsawᵢₕ| could have computed |g∞ s| and obtained |b|~and~|t| directly!
-However, recall that the characteristic of the jigsaw model is that computation proceeds by converting input list elements directly into output colist elements without involving states, which only appear in the specifications.%
-\todo{irrelevance}\
+From Goal~2, there seems to be another way forward: the equality says that the output vertical edge~|b| and the index~|t| in the type of~|as'| are determined by |g∞ s|, so |jigsawᵢₕ| could have computed |g∞ s| and obtained |b|~and~|t| directly!
+However, recall that the characteristic of the jigsaw model is that computation proceeds by converting input list elements directly into output colist elements without involving states, which only appear in the specifications.
 In our setting, this means that states only appear in the function types, not the function bodies, so having |jigsawᵢₕ| invoke |g s| would deviate from the jigsaw model.
 Instead, |jigsawᵢₕ| invokes |fillᵢₕ|, which will only use |piece| to compute~|b|.
+(It would probably be better if we declared the argument~|s| in the metamorphic type as irrelevant to enforce that |s|~does not participate in the computation; this irrelevance declaration would then need to be propagated to related parts in |AlgList| and |CoalgList|, though, which we are trying to avoid.)
 
-Let us get back to work on |fillᵢₕ| (Goal~2).
+Let us get back to |fillᵢₕ| (Goal~1).
 The process of filling a row follows the structure of the input list, so overall it is an induction, of which the first step is a case analysis:
 \begin{code}
-fillᵢₕ []                            = (GOAL(Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ e ≡ (b , t))(3))
-fillᵢₕ (a ∷ as(CXT(AlgList (◁) e s)))  = (GOAL(Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ (f a s) ≡ (b , t))(4))
+fillᵢₕ []                              = (GOAL(Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ e ≡ (b , t))(3))
+fillᵢₕ (a ∷ as(CXT(AlgList (◁) e s)))  = (GOAL(Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ (a ◁ s) ≡ (b , t))(4))
 \end{code}
-If the input list is empty (Goal~3), we return the rightmost ``flat'' edge.
-We therefore assume the existence of a constant |flat : B| and fill it into Goal~3:
+If the input list is empty (Goal~3), we return the rightmost ``straight'' edge.
+We therefore assume that a constant |straight : B| is available, and fill it into Goal~3:
 \begin{code}
-fillᵢₕ [] = (flat , (GOAL(Σ[ t ∈ S ] AlgList A (◁) e t × g∞ e ≡ (flat , t))(5)))
+fillᵢₕ [] = (straight , (GOAL(Σ[ t ∈ S ] AlgList A (◁) e t × g∞ e ≡ (straight , t))(5)))
 \end{code}
-We should now give the output list, which we know should have the same length as the input list, so in this case it is easy to see that the output list should be empty as well (and, by giving an underscore as an instruction, \Agda\ can infer the index in the type of the output list):
+We should now give the new list, which we know should have the same length as the old list, so in this case it is easy to see that the new list should be empty as well (and, by giving an underscore as an instruction, \Agda\ can infer the index in the type of the new list):
 \begin{code}
-fillᵢₕ [] = (flat , _ , [] , (GOAL(g∞ e ≡ (flat , e))(6)))
+fillᵢₕ [] = (straight , _ , [] , (GOAL(g∞ e ≡ (straight , e))(6)))
 \end{code}
-Here we arrive at another proof obligation, which says that from the initial state~|e| the coalgebra~|g∞| should produce |flat| and leave the state unchanged.
-This is a reasonable property to add as an assumption of the algorithm: if we want all the rightmost vertical edges to be ``flat'', it had better be the case that the initial state (at the top right corner) does give rise to a colist of |flat|s.
-We there add an additional assumption |flat-production : g∞ e ≡ (flat , e)|, which discharges Goal~5.
+Here we arrive at another proof obligation, which says that from the initial state~|e| the coalgebra~|g∞| should produce |straight| and leave the state unchanged.
+This seems a reasonable property to add as a condition of the algorithm: in heapsort, for example, |e|~is the empty heap and |straight| is~|INF|, and popping from the empty heap, as we mentioned, can be defined to return~|INF| and the empty heap itself.
+We therefore add an additional assumption |straight-production : g∞ e ≡ (straight , e)|, which discharges Goal~6.
 
 The interesting case is when the input list is non-empty (Goal~4).
 We start with an inductive call to |fillᵢₕ| itself:
@@ -882,9 +886,9 @@ fillᵢₕ (a ∷ as(CXT(AlgList (◁) e s))  ) with fillᵢₕ as
 fillᵢₕ (a ∷ as                        ) | (b , s' , as' , eq) =
   (GOAL(Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ (a ◁ s) ≡ (b , t))(7))
 \end{code}
-With the inductive call, the jigsaw pieces below the tail~|as| have been placed, yielding a vertical edge~|b| and a list~|as'| of horizontal edges below~|as|.
-\todo[inline]{illustration}
-We should complete the row by placing the last jigsaw piece with |a|~and~|b| as input, and use the output edges in the right places:
+With the inductive call, the jigsaw pieces below the tail~|as| have been placed, yielding a vertical edge~|b| and a list~|as'| of horizontal edges below~|as|:
+\[ \includegraphics{figs/row-inductive-case-crop.pdf} \]
+We should complete the row by placing the last jigsaw piece with |a|~and~|b| as input, and use the output edges |(b' , a') = piece (a , b)| in the right places:
 \begin{code}
 fillᵢₕ (a ∷ as(CXT(AlgList (◁) e s))  ) with fillᵢₕ as
 fillᵢₕ (a ∷ as                        ) | (b , s' , as' , eq(CXT(g∞ s ≡ (b , s')))) =
@@ -908,7 +912,7 @@ Following what we did in \autoref{sec:streaming}, a commutative state transition
 \end{equation}
 where |(b' , a') = piece (a , b)|.
 This is again a kind of commutativity of production and consump\-tion, but unlike the streaming condition~(\ref{eq:streaming}) in \autoref{sec:streaming}, the elements produced and consumed can change after swapping the order of production and consumption.
-Given any top and right edges |a|~and~|b|, the |piece| function can always compute the left and bottom edges |b'|~and~|a'| to complete the commutative diagram.
+Given any top and right edges |a|~and~|b|, the |piece| function should be able to find the left and bottom edges |b'|~and~|a'| to complete the commutative diagram.
 This constitutes a specification for |piece|, and we call it the \emph{jigsaw condition}:
 \begin{code}
 jigsaw-conditionᵢ :  {a : A} {b : B} {s s' : S} →
@@ -916,35 +920,72 @@ jigsaw-conditionᵢ :  {a : A} {b : B} {s s' : S} →
 \end{code}
 Adding |jigsaw-conditionᵢ| as the final assumption, we can fill |jigsaw-conditionᵢ eq| into Goal~8 and complete the program.
 
-\subsection{Vertical Placement}
+The whole program is shown in \autoref{fig:jigsaw-infinite-horizontal}.
 
-We have discovered conditions for computing metamorphisms in the infinite jigsaw model, but for only one particular placement strategy.
-Do the same conditions work for a different placement strategy?
-Let us find out!
+\varparagraph{Aside: deriving the \textit{piece} function for heapsort using the jigsaw condition.}
+For the heapsort metamorphism, consuming an element is pushing it into a heap, and producing an element is popping the minimum element from a heap.
+In diagram~(\ref{eq:jigsaw}), producing~|b| on the right means that |b|~is the minimum element in the heap~|s|, and |s'|~is the rest of the heap.
+If |a|~is pushed into~|s|, popping from the updated heap |a ◁ s| will either still produce~|b| if $a > b$, or produce~|a| if $a \leq b$, so |b'|~should be |min a b|.
+Afterwards, the final heap |a' ◁ s'| should still contain the other element that was not popped out, i.e., |max a b|, and can be obtained by pushing |max a b| into~|s'|, so |a'|~should be |max a b|.
 
-A natural strategy to try next is to place jigsaw pieces vertically, one column at a time.
-We start from exactly the same type:
+\begin{figure}
+\beforefigurecode
+\begin{code}
+module Jigsaw-Infinite-Horizontal
+  ((◁) : A → S → S) (e : S) (g∞ : S → B × S)
+  (piece : A × B → B × A)
+  (jigsaw-conditionᵢ :  {a : A} {b : B} {s s' : S} →
+                        g∞ s ≡ (b , s') → let (b' , a') LETEQ piece (a , b) in g∞ (a ◁ s) ≡ (b' , a' ◁ s'))
+  (straight : B) (straight-production : g∞ e ≡ (straight , e))
+  where
+
+  fillᵢₕ : {s : S} → AlgList A (◁) e s → Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ s ≡ (b , t)
+  fillᵢₕ [] = straight , _ , [] , straight-production
+  fillᵢₕ (a ∷ as) with fillᵢₕ as
+  fillᵢₕ (a ∷ as) | b , _ , as' , eq =  let  (b' , a') LETEQ piece (a , b)
+                                        in   b' , _ , a' ∷ as' , jigsaw-conditionᵢ eq
+
+  jigsawᵢₕ : {s : S} → AlgList A (◁) e s → CoalgList B (just ∘ g∞) s
+  decon (jigsawᵢᵥ as) with fillᵢₕ as
+  decon (jigsawᵢᵥ as) | b , _ , as' , eq = b ∷⟨ cong just eq ⟩ jigsawᵢᵥ as'
+\end{code}
+\caption{Infinite jigsaw metamorphisms --- horizontal placement}
+\label{fig:jigsaw-infinite-horizontal}
+\end{figure}
+
+\subsubsection{Vertical Placement}
+
+In contrast to streaming metamorphisms (\autoref{sec:streaming}), where we need to be cautious about producing an element because once an element is produced we can no longer change it, one way of thinking about metamorphic computations in the jigsaw model is that the entire output colist is produced from the start and constantly updated:
+\begin{itemize}
+\item initially we start with a colist of |straight| edges, which is unfolded from the empty state~|e|;
+\item inductively, if we have a colist unfolded from some state~|s| and an input element~|a| comes in, we place a column of jigsaw pieces to update the colist, and the result, due to the jigsaw condition, is a colist unfolded from the new state |a ◁ s|;
+\item finally, after all elements of the input list~|as| are consumed, we get a colist unfolded from |foldr (◁) e as|.
+\end{itemize}
+This is a vertical placement strategy, which we should be able to program under the same conditions that we discovered when using the horizontal placement strategy.
+
+We start from exactly the same type as |jigsawᵢₕ|:
 \begin{code}
 jigsawᵢᵥ : {s : S} → AlgList A (◁) e s → CoalgList B (just ∘ g∞) s
 jigsawᵢᵥ as(CXT(AlgList A (◁) e s)) = (GOAL(CoalgList B (just ∘ g∞) s)(0))
 \end{code}
-The placing of columns follows the structure of the input list, so |jigsawᵢᵥ| is itself an induction:
+As described above, the vertical placement strategy is an induction on the input list, so we proceed with a case analysis on~|as|:
 \begin{code}
 jigsawᵢᵥ []                                = (GOAL(CoalgList B (just ∘ g∞) e)(1))
 jigsawᵢᵥ (a ∷ as(CXT(AlgList A (◁) e s)))  = (GOAL(CoalgList B (just ∘ g∞) (a ◁ s))(2))
 \end{code}
-If the input list is empty (Goal~1), we should produce a colist of |flat| egdes:
+If the input list is empty (Goal~1), we should produce a colist of |straight| egdes:
 \begin{code}
-decon (jigsawᵢᵥ []) = flat ∷⟨ (GOAL(just (g∞ e) ≡ just (flat , e))(3)) ⟩ jigsawᵢᵥ []
+decon (jigsawᵢᵥ []) = straight ∷⟨ (GOAL(just (g∞ e) ≡ just (straight , e))(3)) ⟩ jigsawᵢᵥ []
 \end{code}
-The proof obligation here (Goal~3) is discharged with |cong just flat-production|.
+The proof obligation here (Goal~3) is discharged with |cong just straight-production|.
 For the inductive case (Goal~2):
+\[ \includegraphics{figs/column-crop.pdf} \]
 We place all the columns below the tail~|as| by an inductive call |jigsawᵢₕ as|, which gives us a colist of vertical edges.
-To the left of this colist, we should place the last column below the head element~|a|; again we introduce a helper function |fillᵢᵥ| that takes |a|~and the colist as input and produces the colist of the leftmost edges:
+To the left of this colist, we should place the last column below the head element~|a|; again we introduce a helper function |fillᵢᵥ| that takes |a|~and the colist |jigsawᵢₕ as| as input and produces the leftmost colist:
 \begin{code}
 jigsawᵢᵥ (a ∷ as) = fillᵢᵥ a (jigsawᵢₕ as)
 \end{code}
-Agda again can give us a suitable type of |fillᵢᵥ|:
+\Agda\ again can give us a suitable type of |fillᵢᵥ|:
 \begin{code}
 fillᵢᵥ : {s : S} (a : A) → CoalgList B (just ∘ g∞) s → CoalgList B (just ∘ g∞) (a ◁ s)
 fillᵢᵥ a bs(CXT(CoalgList B (just ∘ g∞) s)) = (GOAL(CoalgList B (just ∘ g∞) (a ◁ s))(4))
@@ -961,35 +1002,25 @@ We can convince \Agda\ that this case is impossible by matching~|eq| with the ab
 \begin{code}
 decon (fillᵢᵥ a bs) | ⟨ () ⟩
 \end{code}
-For Goal~6, we invoke the |piece| function to transform |a|~and~|b| to |b'|~and~|a'|; the head of the output colist is then~|b'|, and the tail is coinductively computed from |a'|~and~|bs'|.
+The real work is done at Goal~6, where |bs|~is deconstructed into its head~|b| and tail~|bs'|:
+\[ \includegraphics{figs/column-coinductive-case-crop.pdf} \]
+We invoke the |piece| function to transform |a|~and~|b| to |b'|~and~|a'|; the head of the output colist is then~|b'|, and the tail is coinductively computed from |a'|~and~|bs'|:
 \begin{code}
 decon (fillᵢᵥ a bs) | b ∷⟨ eq(CXT(just (g∞ s) ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B (just ∘ g∞) s')) =
   let (b' , a') LETEQ piece (a , b) in b' ∷⟨ (GOAL(just (g∞ (a ◁ s)) ≡ just (b' , a' ◁ s'))(7)) ⟩ fillᵢᵥ a' bs'
 \end{code}
-The remaining proof obligation can indeed be discharged with the jigsaw condition, modulo the harmless occurrences of |just|.
-
-\todo[inline]{Not too surprising though, if we think about how |jigsawᵢᵥ| will be evaluated.}
+The remaining proof obligation is indeed the jigsaw condition modulo the harmless occurrences of |just|, so we arrive at the complete program shown in \autoref{fig:jigsaw-infinite-vertical}.
 
 \begin{figure}
 \beforefigurecode
 \begin{code}
-module Jigsaw-Infinite
+module Jigsaw-Infinite-Vertical
   ((◁) : A → S → S) (e : S) (g∞ : S → B × S)
   (piece : A × B → B × A)
   (jigsaw-conditionᵢ :  {a : A} {b : B} {s s' : S} →
                         g∞ s ≡ (b , s') → let (b' , a') LETEQ piece (a , b) in g∞ (a ◁ s) ≡ (b' , a' ◁ s'))
-  (flat : B) (flat-production : g∞ e ≡ (flat , e))
+  (straight : B) (straight-production : g∞ e ≡ (straight , e))
   where
-
-  fillᵢₕ : {s : S} → AlgList A (◁) e s → Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ s ≡ (b , t)
-  fillᵢₕ [] = flat , _ , [] , flat-production
-  fillᵢₕ (a ∷ as) with fillᵢₕ as
-  fillᵢₕ (a ∷ as) | b , _ , as' , eq =  let  (b' , a') LETEQ piece (a , b)
-                                        in   b' , _ , a' ∷ as' , jigsaw-conditionᵢ eq
-
-  jigsawᵢₕ : {s : S} → AlgList A (◁) e s → CoalgList B (just ∘ g∞) s
-  decon (jigsawᵢᵥ as) with fillᵢₕ as
-  decon (jigsawᵢᵥ as) | b , _ , as' , eq = b ∷⟨ cong just eq ⟩ jigsawᵢᵥ as'
 
   fillᵢᵥ : {s : S} (a : A) → CoalgList B (just ∘ g∞) s → CoalgList B (just ∘ g∞) (a ◁ s)  
   decon (fillᵢᵥ a bs) with decon bs
@@ -997,16 +1028,17 @@ module Jigsaw-Infinite
   decon (fillᵢᵥ a bs) | b ∷⟨ eq ⟩ bs' =
     let  (b' , a') LETEQ piece (a , b)
     in   b' ∷⟨ cong just (jigsaw-conditionᵢ (cong-from-just eq)) ⟩ fillᵢᵥ a' bs'
+         -- |cong-from-just : {X : Set} {x x' : X} → just x ≡ just x' → x ≡ x'|
 
   jigsawᵢᵥ : {s : S} → AlgList A (◁) e s → CoalgList B (just ∘ g∞) s
-  decon (jigsawᵢᵥ []) = flat ∷⟨ cong just flat-production ⟩ jigsawᵢᵥ []
+  decon (jigsawᵢᵥ []) = straight ∷⟨ cong just straight-production ⟩ jigsawᵢᵥ []
   jigsawᵢᵥ (a ∷ as) = fillᵢᵥ a (jigsawᵢᵥ as)
 \end{code}
-\caption{Infinite jigsaw metamorphisms}
-\label{fig:jigsaw-infinite}
+\caption{Infinite jigsaw metamorphisms --- vertical placement}
+\label{fig:jigsaw-infinite-vertical}
 \end{figure}
 
-\section{Jigsaw Metamorphisms: The General (Possibly Finite) Case}
+\subsection{The General (Possibly Finite) Case}
 \label{sec:jigsaw-general}
 
 Let |f : A → S → S|, |e : S|, and |g : S → Maybe (B × S)|.
