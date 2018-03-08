@@ -22,6 +22,7 @@
 %format (GOAL(t)(i)) = "\highlight{goal}{\textbf\{\," t "\,\textbf\}_{\kern1pt" i "}}"
 %format (GOAL'(t)) = "\highlight{goal}{\textbf\{\," t "\,\textbf\}}"
 %format (CXT(t)) = "\kern-2pt_{\highlight{cxt}{" t "}}"
+%format constant ="\keyword{constant}"
 
 %format ◁ = "{\kern-.25pt\lhd\kern.25pt}"
 %format _◁_ = _ ◁ _
@@ -496,6 +497,7 @@ Now let us try to develop the program.
 We are trying to consume the input list first, so we pattern match on the argument |as| to see if there is anything to consume.
 In \Agda\ this is as easy as putting |as| into Goal~0 and firing a ``case splitting'' command (\texttt{C-c C-c}); the program will then be split into two clauses, listing all possible cases of~|as|:
 \begin{code}
+cbp : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
 cbp s []                                            = (GOAL(CoalgList B g s)(1))
 cbp s (a ∷ as(CXT(AlgList A (left-alg (▷)) id h)))  = (GOAL(CoalgList B g (h (s ▷ a)))(2))
 \end{code}
@@ -506,40 +508,52 @@ We continue to interact with and refine these two new goals.
 
 If there is something to consume, that is, the input list is non-empty, we go into Goal~2, where we keep consuming the tail |as| but from a new state:
 \begin{code}
-cbp s (a ∷ as) = cbp (GOAL(S)(3)) as
+cbp : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
+cbp s []        = (GOAL(CoalgList B g s)(1))
+cbp s (a ∷ as)  = cbp (GOAL(S)(3)) as
 \end{code}
 What is this new state? It should be the one obtained by subsuming~|a| into~|s|, i.e., |s ▷ a|.
 \Agda\ knows this too, in fact --- firing the ``Auto'' command (\texttt{C-c C-a}) at Goal~3 yields:
 \begin{code}
-cbp s (a ∷ as) = cbp (s ▷ a) as
+cbp : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
+cbp s []        = (GOAL(CoalgList B g s)(1))
+cbp s (a ∷ as)  = cbp (s ▷ a) as
 \end{code}
 
 If there is nothing more to consume, that is, the input list is empty, we go into Goal~1, where we should produce the output colist, to specify which we should say what will result if we |decon|struct the colist.
 That is, we perform a copattern match (which can be done by \Agda\ if we give it the case splitting command (\texttt{C-c C-c}) without specifying a variable):
 \begin{code}
+cbp : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
 decon (cbp s []) = (GOAL(CoalgListF B g s)(4))
+cbp s (a ∷ as) = cbp (s ▷ a) as
 \end{code}
 The result of deconstruction depends on whether |g|~can produce anything from the current state~|s|, so we pattern match on |g s|, splitting Goal~4 into:
 \begin{code}
+cbp : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
 decon (cbp s []) with g s
 decon (cbp s []) | nothing        = (GOAL(CoalgListF B g s)(5))
 decon (cbp s []) | just (b , s')  = (GOAL(CoalgListF B g s)(6))
+cbp s (a ∷ as) = cbp (s ▷ a) as
 \end{code}
 If |g s| is |nothing| (Goal~5), the output colist is empty; otherwise |g s| is some |just (b , s')| (Goal~6), in which case we use~|b| as the head and go on to produce the tail from~|s'|.
 We therefore refine the two goals into:
 \begin{code}
+cbp : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
 decon (cbp s []) with g s
 decon (cbp s []) | nothing        = ⟨ (GOAL(g s ≡ nothing)(7)) ⟩
 decon (cbp s []) | just (b , s')  = b ∷⟨ (GOAL(g s ≡ just (b , s'))(8)) ⟩ cbp s' []
+cbp s (a ∷ as) = cbp (s ▷ a) as
 \end{code}
 
 We are now required to discharge equality proof obligations about |g s|, and the obligations exactly correspond to the results of the |with|-matching.
 This is precisely a situation in which the |inspect| idiom of the \Agda\ standard library can help: with |inspect|, we can obtain an equality proof of the right type in each of the cases of the |with|-matching.
 We therefore obtain:
 \begin{code}
+cbp : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
 decon (cbp s []) with g s         | inspect g s
 decon (cbp s []) | nothing        | [ eq(CXT(g s ≡ nothing))        ] = ⟨ (GOAL(g s ≡ nothing)(7)) ⟩
 decon (cbp s []) | just (b , s')  | [ eq(CXT(g s ≡ just (b , s')))  ] = b ∷⟨ (GOAL(g s ≡ just (b , s'))(8)) ⟩ cbp s' []
+cbp s (a ∷ as) = cbp (s ▷ a) as
 \end{code}
 Both goals can now be discharged with |eq|, and we arrive at a complete program, shown in \autoref{fig:cbp}.
 As explained in \autoref{sec:spec}, this program is a correct metamorphic algorithm because it type-checks.
@@ -569,7 +583,6 @@ For example, when converting $0.625_{10}$ to $0.101_2$, after consuming the firs
 Streaming is not always possible, of course.
 Heapsort is a counterexample: no matter how many input elements have been consumed, it is always possible that a minimum element --- which should be the first output element --- has yet to appear, and thus we can never produce the first output element before we see the whole input list.
 There should be some condition under which we can stream metamorphisms, and we should be able to discover such condition if we program a streaming algorithm together with \Agda, which knows what metamorphisms are and can provide us with semantic hints regarding what conditions need to be introduced to make the program a valid metamorphic algorithm.
-
 
 %\[ \begin{tikzpicture}[x=2.5em,y=2em]
 %\node(0) {$(0\,,\;10^{-1}\,,\;0.5)$};
@@ -606,6 +619,7 @@ stream s as(CXT(AlgList A (left-alg (▷)) id h)) = (GOAL(CoalgList B g (h s))(0
 \end{code}
 Different from |cbp| (\autoref{sec:cbp}/\autoref{fig:cbp}), this time we try to produce using~|g| whenever possible, so our first step is to pattern match on |g s| (and we also introduce |decon| and |inspect|, which will be needed like in |cbp|):
 \begin{code}
+stream : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
 decon (stream s as(CXT(AlgList A (left-alg (▷)) id h))  ) with g s         | inspect g s
 decon (stream s as                                      ) | nothing        | [ eq ] = (GOAL(CoalgListF B g (h s))(1))
 decon (stream s as                                      ) | just (b , s')  | [ eq ] = (GOAL(CoalgListF B g (h s))(2))
@@ -614,22 +628,33 @@ decon (stream s as                                      ) | just (b , s')  | [ e
 For Goal~1, we cannot produce anything since |g s| is |nothing|, but this does not mean that the output colist is empty --- we may be able to produce something once we consume the input list and advance to a new state.
 We therefore pattern match on the input list:
 \begin{code}
-decon (stream s []                                            ) | nothing | [ eq ] = (GOAL(CoalgListF B g s)(3))
-decon (stream s (a ∷ as(CXT(AlgList A (left-alg (▷)) id h)))  ) | nothing | [ eq ] =
+stream : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
+decon (stream s as                                            )  with g s         | inspect g s
+decon (stream s []                                            )  | nothing        | [ eq ] = (GOAL(CoalgListF B g s)(3))
+decon (stream s (a ∷ as(CXT(AlgList A (left-alg (▷)) id h)))  )  | nothing        | [ eq ] =
 {-"\hfill"-} (GOAL(CoalgListF B g (h (s ▷ a)))(4))
+decon (stream s as                                            )  | just (b , s')  | [ eq ] =
+{-"\hfill"-} (GOAL(CoalgListF B g (h s))(2))
 \end{code}
 These two goals are similar to what we have seen in |cbp|.
 At Goal~3, there is nothing more in the input list to consume, so we should end production and emit an empty colist, while for Goal~4 we should advance to the new state |s ▷ a| and set the tail |as| as the list to be consumed next:
 \begin{code}
-decon (stream s []        ) | nothing | [ eq ] = ⟨ eq ⟩
-decon (stream s (a ∷ as)  ) | nothing | [ eq ] = decon (stream (s ▷ a) as)
+stream : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
+decon (stream s as        )  with g s        | inspect g s
+decon (stream s []        ) | nothing        | [ eq ] = ⟨ eq ⟩
+decon (stream s (a ∷ as)  ) | nothing        | [ eq ] = decon (stream (s ▷ a) as)
+decon (stream s as        ) | just (b , s')  | [ eq ] = (GOAL(CoalgListF B g (h s))(2))
 \end{code}
 
 Goal~2 is the interesting case.
 Using~|g|, from the current state~|s| we can produce~|b|, which we set as the head of the output colist, and advance to a new state~|s'|, from which we produce the tail of the colist:
 \begin{code}
-decon (stream s as(CXT(AlgList A (left-alg f) id h))) | just (b , s') | [ eq(CXT(g s ≡ just (b , s'))) ] =
-  b ∷⟨ (GOAL(g (h s) ≡ just (b , h s'))(5)) ⟩ stream s' as
+stream : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
+decon (stream s as                                    ) with g s         | inspect g s
+decon (stream s []                                    ) | nothing        | [ eq ] = ⟨ eq ⟩
+decon (stream s (a ∷ as)                              ) | nothing        | [ eq ] = decon (stream (s ▷ a) as)
+decon (stream s as(CXT(AlgList A (left-alg f) id h))  ) | just (b , s')  | [ eq(CXT(g s ≡ just (b , s'))) ] =
+{-"\hfill"-} b ∷⟨ (GOAL(g (h s) ≡ just (b , h s'))(5)) ⟩ stream s' as
 \end{code}
 
 \varparagraph{The streaming condition.}
@@ -701,11 +726,13 @@ If we require that |g|~and~|(▷)| commute instead, this commutativity of single
 \label{eq:streaming}
 \end{equation}
 This is \varcitet{Gibbons-metamorphisms}{'s} \emph{streaming condition}, which is needed for proving the correctness of the streaming algorithm.
-In our development of |stream|, we can assume that a proof of the streaming condition is available (by adding it as an extra parameter):
+In our development of |stream|, we can assume that a proof of the streaming condition is available:
 \begin{code}
-streaming-condition :  {a : A} {b : B} {s s' : S} →
-                       g s ≡ just (b , s') → g (s ▷ a) ≡ just (b , s' ▷ a)
+constant streaming-condition :  {a : A} {b : B} {s s' : S} →
+                                g s ≡ just (b , s') → g (s ▷ a) ≡ just (b , s' ▷ a)
 \end{code}
+We use a hypothetical |constant| keyword here to emphasise that |streaming-condition| is a constant made available to us and does not need to be defined.
+In the complete program in \autoref{fig:stream}, the functions defined in this section are contained in a module, and |streaming-condition| becomes a parameter of this module.
 
 Back to Goal~5, where we should prove the commutativity of |g|~and~|h|.
 All it takes should be a straightforward induction to extend the streaming condition along the axis of consumption --- so straightforward, in fact, that \Agda\ can do most of the work for us!
@@ -720,14 +747,16 @@ streaming-lemma as(CXT(AlgList A (left-alg (▷)) id h)) eq(CXT(g s ≡ just (b 
 Now all that is left is the body of |streaming-lemma| (Goal~6).
 If we give a hint that case-splitting is needed (\texttt{-c}), Auto can complete the definition of |streaming-lemma| on its own, yielding (modulo one cosmetic variable renaming):
 \begin{code}
+streaming-lemma :  {b : B} {s s' : S} {h : S → S} → AlgList A (left-alg (▷)) id h →
+                   g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
 streaming-lemma []        eq = eq
 streaming-lemma (a ∷ as)  eq = streaming-lemma as (streaming-condition eq)
 \end{code}
 
 The complete program is shown in \autoref{fig:stream}.
 
-\varparagraph{Aside: streaming base conversion for fractions.}
-We have (re)discovered the streaming condition, but does it actually hold for the base conversion metamorphism |unfoldr g_C ∘ foldl (▷ᶜ) e_C| given in \autoref{sec:metamorphisms}?
+\varparagraph{Streaming base conversion for fractions.}
+We have (re)discovered the streaming condition, but does it hold for the base conversion metamorphism |unfoldr g_C ∘ foldl (▷ᶜ) e_C| given in \autoref{sec:metamorphisms}?
 Actually, no.
 The problem is that |g_C|~can be too eager to produce an output digit.
 In $0.625_{10} = 0.101_2$, for example, after consuming the first decimal digit~$6$, we can safely use~|g_C| to produce the first two binary digits $1$~and~$0$, reaching the state $(0.1\,,\;0.01\,,\;0.125)$.
@@ -783,6 +812,8 @@ Does this mean that we can bypass computation with states and just work with lis
 Surprisingly, \citet{Nakano-jigsaw} has such a computation model, in which it is possible to compute a metamorphism without using the states mentioned in its specification!
 (By contrast, in |cbp| (\autoref{sec:cbp}/\autoref{fig:cbp}) and |stream| (\autoref{sec:streaming}/\autoref{fig:stream}), we can hope to erase the indices and proofs in |AlgList| and |CoalgList| but not the input state, which is used in the computation.)
 
+\subsection{The Jigsaw Model}
+
 In \varcitet{Nakano-jigsaw}{'s} model, a computation transforms a |List A| to a |CoList B|, and to program its behaviour, we need to provide a suitable function |piece : A × B → B × A|.
 \citet{Nakano-jigsaw} neatly visualises his model as a jigsaw puzzle.
 The |piece| function can be thought of as describing a set of jigsaw pieces:
@@ -805,11 +836,15 @@ Initially the only place we can put in a piece is the top-right corner, but as w
 Eventually we will reach the left boundary, and the values on the left boundary are the output elements.
 Although we can put in the pieces in a nondeterministic order and even in parallel, the final board configuration is determined by the initial boundary, and thus the output elements are produced deterministically.
 
+\varparagraph{Heapsort in the jigsaw model.}
 For a concrete example, the heapsort metamorphism can be computed in the jigsaw model with |piece (a , b) LETEQ (min a b , max a b)|.
-The board sorting the list |{-"2\;"-} ∷ {-"3\;"-} ∷ {-"1\;"-} ∷ []| is shown below:
-\[ \includegraphics{figs/heapsort-piece-crop.pdf}
+The final board configuration after sorting the list |{-"2\;"-} ∷ {-"3\;"-} ∷ {-"1\;"-} ∷ []| is shown below:
+\begin{equation}
+\raisebox{-7.125ex}{\includegraphics{figs/heapsort-piece-crop.pdf}}
 \qquad\qquad
-\raisebox{-6mm-.975pt}{\includegraphics{figs/heapsort-crop.pdf}} \]
+\raisebox{-7.125ex-6mm-.975pt}{\includegraphics{figs/heapsort-crop.pdf}}
+\label{eq:heapsort}
+\end{equation}
 \citet{Nakano-jigsaw} remarks that this transforms heapsort into ``a form of parallel bubble sort'', which looks very different from the original metamorphic computation --- in particular, heaps are nowhere to be seen.
 
 In general, how is the jigsaw model related to metamorphisms, and under what conditions does the jigsaw model compute metamorphisms?
@@ -838,6 +873,7 @@ We do not know (or cannot easily specify) the index~|t| in the type of the new |
 The job of |jigsawᵢₕ|, then, is to call |fillᵢₕ| repeatedly to cover the board.
 We revise Goal~0 into:
 \begin{code}
+jigsawᵢₕ : {s : S} → AlgList A (◁) e s → CoalgList B (just ∘ g∞) s
 decon (jigsawᵢₕ as(CXT(AlgList A (◁) e s))) with fillᵢₕ as
 decon (jigsawᵢₕ as) | (b , t , as') = b ∷⟨ (GOAL(just (g∞ s) ≡ just (b , t))(2)) ⟩ jigsawᵢₕ as'
 \end{code}
@@ -864,25 +900,32 @@ Instead, |jigsawᵢₕ| invokes |fillᵢₕ|, which will only use |piece| to com
 Let us get back to |fillᵢₕ| (Goal~1).
 The process of filling a row follows the structure of the input list, so overall it is an induction, of which the first step is a case analysis:
 \begin{code}
-fillᵢₕ []                              = (GOAL(Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ e ≡ (b , t))(3))
-fillᵢₕ (a ∷ as(CXT(AlgList (◁) e s)))  = (GOAL(Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ (a ◁ s) ≡ (b , t))(4))
+fillᵢₕ : {s : S} → AlgList A (◁) e s → Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ s ≡ (b , t)
+fillᵢₕ [] = (GOAL(Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ e ≡ (b , t))(3))
+fillᵢₕ (a ∷ as(CXT(AlgList (◁) e s))) = (GOAL(Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ (a ◁ s) ≡ (b , t))(4))
 \end{code}
 If the input list is empty (Goal~3), we return the rightmost ``straight'' edge.
-We therefore assume that a constant |straight : B| is available, and fill it into Goal~3:
+We therefore assume that a |constant straight : B| is available, and fill it into Goal~3:
 \begin{code}
-fillᵢₕ [] = (straight , (GOAL(Σ[ t ∈ S ] AlgList A (◁) e t × g∞ e ≡ (straight , t))(5)))
+fillᵢₕ : {s : S} → AlgList A (◁) e s → Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ s ≡ (b , t)
+fillᵢₕ [] = straight , (GOAL(Σ[ t ∈ S ] AlgList A (◁) e t × g∞ e ≡ (straight , t))(5))
+fillᵢₕ (a ∷ as(CXT(AlgList (◁) e s))) = (GOAL(Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ (a ◁ s) ≡ (b , t))(4))
 \end{code}
 We should now give the new list, which we know should have the same length as the old list, so in this case it is easy to see that the new list should be empty as well (and, by giving an underscore as an instruction, \Agda\ can infer the index in the type of the new list):
 \begin{code}
-fillᵢₕ [] = (straight , _ , [] , (GOAL(g∞ e ≡ (straight , e))(6)))
+fillᵢₕ : {s : S} → AlgList A (◁) e s → Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ s ≡ (b , t)
+fillᵢₕ [] = straight , _ , [] , (GOAL(g∞ e ≡ (straight , e))(6))
+fillᵢₕ (a ∷ as(CXT(AlgList (◁) e s))) = (GOAL(Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ (a ◁ s) ≡ (b , t))(4))
 \end{code}
 Here we arrive at another proof obligation, which says that from the initial state~|e| the coalgebra~|g∞| should produce |straight| and leave the state unchanged.
 This seems a reasonable property to add as a condition of the algorithm: in heapsort, for example, |e|~is the empty heap and |straight| is~|INF|, and popping from the empty heap, as we mentioned, can be defined to return~|INF| and the empty heap itself.
-We therefore add an additional assumption |straight-production : g∞ e ≡ (straight , e)|, which discharges Goal~6.
+We therefore add an additional |constant straight-production : g∞ e ≡ (straight , e)|, which discharges Goal~6.
 
 The interesting case is when the input list is non-empty (Goal~4).
 We start with an inductive call to |fillᵢₕ| itself:
 \begin{code}
+fillᵢₕ : {s : S} → AlgList A (◁) e s → Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ s ≡ (b , t)
+fillᵢₕ [] = straight , _ , [] , straight-production
 fillᵢₕ (a ∷ as(CXT(AlgList (◁) e s))  ) with fillᵢₕ as
 fillᵢₕ (a ∷ as                        ) | (b , s' , as' , eq) =
   (GOAL(Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ (a ◁ s) ≡ (b , t))(7))
@@ -891,10 +934,14 @@ With the inductive call, the jigsaw pieces below the tail~|as| have been placed,
 \[ \includegraphics{figs/row-inductive-case-crop.pdf} \]
 We should complete the row by placing the last jigsaw piece with |a|~and~|b| as input, and use the output edges |(b' , a') = piece (a , b)| in the right places:
 \begin{code}
+fillᵢₕ : {s : S} → AlgList A (◁) e s → Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × g∞ s ≡ (b , t)
+fillᵢₕ [] = straight , _ , [] , straight-production
 fillᵢₕ (a ∷ as(CXT(AlgList (◁) e s))  ) with fillᵢₕ as
 fillᵢₕ (a ∷ as                        ) | (b , s' , as' , eq(CXT(g∞ s ≡ (b , s')))) =
   let (b' , a') LETEQ piece (a , b) in (b' , _ , a' ∷ as' , (GOAL(g∞ (a ◁ s) ≡ (b' , a' ◁ s'))(8)))
 \end{code}
+
+\varparagraph{The jigsaw condition.}
 Here we see a familiar pattern: Goal~8 demands an equality about producing from a state after consumption, and in the context we have an equality~|eq| about producing from a state before consumption.
 Following what we did in \autoref{sec:streaming}, a commutative state transition diagram can be drawn:
 \begin{equation}
@@ -909,18 +956,20 @@ Following what we did in \autoref{sec:streaming}, a commutative state transition
 \draw[serif cm-to] (hx) edge node(u)[left]{produce~|b'| using~|g∞|} (hx ||- hx'.north);
 \node at ($(t)!0.5!(u)$) [anchor=center] {$\Leftarrow$};
 \end{tikzpicture}
-\label{eq:jigsaw}
+\label{eq:jigsaw-infinite}
 \end{equation}
 where |(b' , a') = piece (a , b)|.
 This is again a kind of commutativity of production and consump\-tion, but unlike the streaming condition~(\ref{eq:streaming}) in \autoref{sec:streaming}, the elements produced and consumed can change after swapping the order of production and consumption.
 Given any top and right edges |a|~and~|b|, the |piece| function should be able to find the left and bottom edges |b'|~and~|a'| to complete the commutative diagram.
 This constitutes a specification for |piece|, and, following \citet{Nakano-jigsaw} (but not strictly), we call it the \emph{jigsaw condition}:
 \begin{code}
-jigsaw-conditionᵢ :  {a : A} {b : B} {s s' : S} →
-                     g∞ s ≡ (b , s') → let (b' , a') LETEQ piece (a , b) in g∞ (a ◁ s) ≡ (b' , a' ◁ s')
+constant
+  jigsaw-conditionᵢ :  {a : A} {b : B} {s s' : S} →
+                       g∞ s ≡ (b , s') → let (b' , a') LETEQ piece (a , b) in g∞ (a ◁ s) ≡ (b' , a' ◁ s')
 \end{code}
 Adding |jigsaw-conditionᵢ| as the final assumption, we can fill |jigsaw-conditionᵢ eq| into Goal~8 and complete the program, which is shown in \autoref{fig:jigsaw-infinite-horizontal}.
 
+\varparagraph{Metamorphisms and the jigsaw model.}
 We can now see a connection between metamorphic computations and the jigsaw model.
 Definitionally, a metamorphism folds the input list to a state, and then produces the output elements while updating the state.
 In the jigsaw model, and with the horizontal placement strategy, rather than folding the input list to a ``compressed'' state, we use the whole list as an ``uncompressed'' state, and ensure that the production process using uncompressed states simulates the definitional one using compressed states.
@@ -929,9 +978,9 @@ The produced element~|b| is exactly the one that would have been produced from t
 Then, on the compressed side, the state~|s| is updated to~|t|; correspondingly, on the uncompressed side, the old list is updated to a new list that folds to~|t|.
 The jigsaw condition ensures that this relationship between compressed and uncompressed states can be maintained by placing rows of jigsaw pieces.
 
-\varparagraph{Aside: deriving the \textit{piece} function for heapsort using the jigsaw condition.}
+\varparagraph{Deriving the \textit{piece} function for heapsort using the jigsaw condition.}
 For the heapsort metamorphism, consuming an element is pushing it into a heap, and producing an element is popping a minimum element from a heap.
-In diagram~(\ref{eq:jigsaw}), producing~|b| on the right means that |b|~is a minimum element in the heap~|s|, and |s'|~is the rest of the heap.
+In diagram~(\ref{eq:jigsaw-infinite}), producing~|b| on the right means that |b|~is a minimum element in the heap~|s|, and |s'|~is the rest of the heap.
 If |a|~is pushed into~|s|, popping from the updated heap |a ◁ s| will either still produce~|b| if $a > b$, or produce~|a| if $a \leq b$, so |b'|~should be |min a b|.
 Afterwards, the final heap |a' ◁ s'| should still contain the other element that was not popped out, i.e., |max a b|, and can be obtained by pushing |max a b| into~|s'|, so |a'|~should be |max a b|.
 
@@ -972,7 +1021,7 @@ In contrast to streaming metamorphisms (\autoref{sec:streaming}), where we need 
 \item finally, after all elements of the input list~|as| are consumed, we get a colist unfolded from |foldr (◁) e as|.
 \end{itemize}
 We should be able to program this strategy as well!
-Moreover, we expect to use the same conditions as those for the horizontal placement strategy, since the final board configuration does not change with different strategies.
+Moreover, we expect to use the same conditions as those for programming the horizontal placement strategy.
 We start from exactly the same type as |jigsawᵢₕ|:
 \begin{code}
 jigsawᵢᵥ : {s : S} → AlgList A (◁) e s → CoalgList B (just ∘ g∞) s
@@ -980,20 +1029,25 @@ jigsawᵢᵥ as(CXT(AlgList A (◁) e s)) = (GOAL(CoalgList B (just ∘ g∞) s)
 \end{code}
 As described above, the vertical placement strategy is an induction on the input list, so we proceed with a case analysis on~|as|:
 \begin{code}
-jigsawᵢᵥ []                                = (GOAL(CoalgList B (just ∘ g∞) e)(1))
-jigsawᵢᵥ (a ∷ as(CXT(AlgList A (◁) e s)))  = (GOAL(CoalgList B (just ∘ g∞) (a ◁ s))(2))
+jigsawᵢᵥ : {s : S} → AlgList A (◁) e s → CoalgList B (just ∘ g∞) s
+jigsawᵢᵥ [] = (GOAL(CoalgList B (just ∘ g∞) e)(1))
+jigsawᵢᵥ (a ∷ as(CXT(AlgList A (◁) e s))) = (GOAL(CoalgList B (just ∘ g∞) (a ◁ s))(2))
 \end{code}
 If the input list is empty (Goal~1), we should produce a colist of |straight| egdes:
 \begin{code}
+jigsawᵢᵥ : {s : S} → AlgList A (◁) e s → CoalgList B (just ∘ g∞) s
 decon (jigsawᵢᵥ []) = straight ∷⟨ (GOAL(just (g∞ e) ≡ just (straight , e))(3)) ⟩ jigsawᵢᵥ []
+jigsawᵢᵥ (a ∷ as(CXT(AlgList A (◁) e s))) = (GOAL(CoalgList B (just ∘ g∞) (a ◁ s))(2))
 \end{code}
-The proof obligation here (Goal~3) is discharged with |cong just straight-production|.
+and the proof obligation (Goal~3) is discharged with |cong just straight-production|.
 For the inductive case (Goal~2):
 \[ \includegraphics{figs/column-crop.pdf} \]
-We place all the columns below the tail~|as| by an inductive call |jigsawᵢₕ as|, which gives us a colist of vertical edges.
-To the left of this colist, we should place the last column below the head element~|a|; again we introduce a helper function |fillᵢᵥ| that takes |a|~and the colist |jigsawᵢₕ as| as input and produces the leftmost colist:
+We place all the columns below the tail~|as| by an inductive call |jigsawᵢᵥ as|, which gives us a colist of vertical edges.
+To the left of this colist, we should place the last column below the head element~|a|; again we introduce a helper function |fillᵢᵥ| that takes |a|~and the colist |jigsawᵢᵥ as| as input and produces the leftmost colist:
 \begin{code}
-jigsawᵢᵥ (a ∷ as) = fillᵢᵥ a (jigsawᵢₕ as)
+jigsawᵢᵥ : {s : S} → AlgList A (◁) e s → CoalgList B (just ∘ g∞) s
+decon (jigsawᵢᵥ []) = straight ∷⟨ cong just straight-production ⟩ jigsawᵢᵥ []
+jigsawᵢᵥ (a ∷ as) = fillᵢᵥ a (jigsawᵢᵥ as)
 \end{code}
 \Agda\ again can give us a suitable type of |fillᵢᵥ|:
 \begin{code}
@@ -1002,6 +1056,7 @@ fillᵢᵥ a bs(CXT(CoalgList B (just ∘ g∞) s)) = (GOAL(CoalgList B (just �
 \end{code}
 Here we should deconstruct~|bs| so that we can invoke |piece| on |a|~and the first element of~|bs|:
 \begin{code}
+fillᵢᵥ : {s : S} (a : A) → CoalgList B (just ∘ g∞) s → CoalgList B (just ∘ g∞) (a ◁ s)
 decon (fillᵢᵥ a bs(CXT(CoalgList B (just ∘ g∞) s))) with decon bs
 decon (fillᵢᵥ a bs) | ⟨ eq(CXT(just (g∞ s) ≡ nothing)) ⟩ = (GOAL(CoalgListF B (just ∘ g∞) (a ◁ s))(5))
 decon (fillᵢᵥ a bs) | b ∷⟨ eq(CXT(just (g∞ s) ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B (just ∘ g∞) s')) =
@@ -1010,12 +1065,19 @@ decon (fillᵢᵥ a bs) | b ∷⟨ eq(CXT(just (g∞ s) ≡ just (b , s'))) ⟩ 
 For Goal~5, since the coalgebra |just ∘ g∞| in the type of~|bs| never returns |nothing|, it is impossible for~|bs| to be empty.
 We can convince \Agda\ that this case is impossible by matching~|eq| with the absurd pattern~|()|, saying that |eq|~cannot possibly exist (and \Agda\ accepts this because a |just|-value can never be equal to |nothing|):
 \begin{code}
+fillᵢᵥ : {s : S} (a : A) → CoalgList B (just ∘ g∞) s → CoalgList B (just ∘ g∞) (a ◁ s)
+decon (fillᵢᵥ a bs(CXT(CoalgList B (just ∘ g∞) s))) with decon bs
 decon (fillᵢᵥ a bs) | ⟨ () ⟩
+decon (fillᵢᵥ a bs) | b ∷⟨ eq(CXT(just (g∞ s) ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B (just ∘ g∞) s')) =
+  (GOAL(CoalgListF B (just ∘ g∞) (a ◁ s))(6))
 \end{code}
 The real work is done at Goal~6, where |bs|~is deconstructed into its head~|b| and tail~|bs'|:
 \[ \includegraphics{figs/column-coinductive-case-crop.pdf} \]
 We invoke the |piece| function to transform |a|~and~|b| to |b'|~and~|a'|; the head of the output colist is then~|b'|, and the tail is coinductively computed from |a'|~and~|bs'|:
 \begin{code}
+fillᵢᵥ : {s : S} (a : A) → CoalgList B (just ∘ g∞) s → CoalgList B (just ∘ g∞) (a ◁ s)
+decon (fillᵢᵥ a bs(CXT(CoalgList B (just ∘ g∞) s))) with decon bs
+decon (fillᵢᵥ a bs) | ⟨ () ⟩
 decon (fillᵢᵥ a bs) | b ∷⟨ eq(CXT(just (g∞ s) ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B (just ∘ g∞) s')) =
   let (b' , a') LETEQ piece (a , b) in b' ∷⟨ (GOAL(just (g∞ (a ◁ s)) ≡ just (b' , a' ◁ s'))(7)) ⟩ fillᵢᵥ a' bs'
 \end{code}
@@ -1058,20 +1120,30 @@ The metamorphic type we use is exactly the one we saw in \autoref{sec:spec}:
 jigsaw : {s : S} → AlgList A (◁) e s → CoalgList B g s
 jigsaw as(CXT(AlgList A (◁) e s)) = (GOAL(CoalgList B g s)(0))
 \end{code}
-We use the vertical placement strategy, so the overall structure will be similar to |jigsawᵢᵥ| in \autoref{sec:jigsaw-vertical}.
+We use the vertical placement strategy, so the overall structure will be similar to |jigsawᵢᵥ| in (\autoref{sec:jigsaw-vertical}/\autoref{fig:jigsaw-infinite-vertical}).
 Starting from a case analysis:
 \begin{code}
-jigsaw []                                = (GOAL(CoalgList B g e)(1))
-jigsaw (a ∷ as(CXT(AlgList A (◁) e s)))  = (GOAL(CoalgList B g (a ◁ s))(2))
+jigsaw : {s : S} → AlgList A (◁) e s → CoalgList B g s
+jigsaw [] = (GOAL(CoalgList B g e)(1))
+jigsaw (a ∷ as(CXT(AlgList A (◁) e s))) = (GOAL(CoalgList B g (a ◁ s))(2))
 \end{code}
 At Goal~1, it should suffice to produce an empty colist:
 \begin{code}
+jigsaw : {s : S} → AlgList A (◁) e s → CoalgList B g s
 decon (jigsaw []) = ⟨ (GOAL(g e ≡ nothing)(3)) ⟩
+jigsaw (a ∷ as(CXT(AlgList A (◁) e s))) = (GOAL(CoalgList B g (a ◁ s))(2))
 \end{code}
 To do so we need |g e ≡ nothing|, which is a reasonable assumption --- for heapsort, for example, |e|~is the empty heap, on which |popMin| computes to |nothing|.
-We therefore introduce a constant |nothing-from-e : g e ≡ nothing| and use it to discharge Goal~1.
+We therefore introduce a |constant nothing-from-e : g e ≡ nothing| and use it to discharge Goal~1:
+\begin{code}
+jigsaw : {s : S} → AlgList A (◁) e s → CoalgList B g s
+decon (jigsaw []) = ⟨ nothing-from-e ⟩
+jigsaw (a ∷ as(CXT(AlgList A (◁) e s))) = (GOAL(CoalgList B g (a ◁ s))(2))
+\end{code}
 For Goal~2, we proceed in exactly the same way as we dealt with the corresponding case of |jigsawᵢᵥ|:
 \begin{code}
+jigsaw : {s : S} → AlgList A (◁) e s → CoalgList B g s
+decon (jigsaw []) = ⟨ nothing-from-e ⟩
 jigsaw (a ∷ as) = fill a (jigsaw as)
 \end{code}
 where the type and the top-level structure of the helper function |fill| is also exactly the same as |fillᵢᵥ|:
@@ -1086,10 +1158,13 @@ The situation gets more interesting from this point.
 Let us work on the familiar case first, namely Goal~5.
 If we do the same thing as the corresponding case of |fillᵢᵥ|:
 \begin{code}
+fill : {s : S} (a : A) → CoalgList B g s → CoalgList B g (a ◁ s)
+decon (fill a bs(CXT(CoalgList B g s))) with decon bs
+decon (fill a bs) | ⟨ eq(CXT(g s ≡ nothing)) ⟩ = (GOAL(CoalgListF B g (a ◁ s))(4))
 decon (fill a bs) | b ∷⟨ eq(CXT(g s ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B g s')) =
   let (b' , a') LETEQ piece (a , b) in b' ∷⟨ (GOAL(g (a ◁ s) ≡ just (b' , a' ◁ s'))(6)) ⟩ fill a' bs'
 \end{code}
-we will see that the condition we need is depicted in the same way as the diagram~(\ref{eq:jigsaw}) for the infinite jigsaw condition.
+we will see that the condition we need is depicted in the same way as the diagram~(\ref{eq:jigsaw-infinite}) for the infinite jigsaw condition.
 Formally it is slightly different though, because we need to wrap the results of~|g| in the |just| constructor:
 \begin{flalign}
 \hspace\mathindent
@@ -1097,48 +1172,69 @@ Formally it is slightly different though, because we need to wrap the results of
 & |g s ≡ just (b , s') → let (b' , a') LETEQ piece (a , b) in g (a ◁ s) ≡ just (b' , a' ◁ s'))| &
 \label{eq:jigsaw-just}
 \end{flalign}
+We will come back to this condition and close Goal~6 later.
 
 Goal~4, unlike the corresponding case of |fillᵢᵥ|, is no longer an impossible case.
 We might be tempted to produce an empty colist here:
 \begin{code}
+fill : {s : S} (a : A) → CoalgList B g s → CoalgList B g (a ◁ s)
+decon (fill a bs(CXT(CoalgList B g s))) with decon bs
 decon (fill a bs) | ⟨ eq(CXT(g s ≡ nothing)) ⟩ = ⟨ (GOAL(g (a ◁ s) ≡ nothing)(7)) ⟩
+decon (fill a bs) | b ∷⟨ eq(CXT(g s ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B g s')) =
+  let (b' , a') LETEQ piece (a , b) in b' ∷⟨ (GOAL(g (a ◁ s) ≡ just (b' , a' ◁ s'))(6)) ⟩ fill a' bs'
 \end{code}
 But the proof obligation indicates that this is not a right choice.
-From an empty state~|s| (i.e., |g s ≡ nothing|) we have to deduce that the next state |a ◁ s| is also empty (i.e., |g (a ◁ s) ≡ nothing|), but this apparently does not hold in general.
-For heapsort, adding a finite element to a heap always makes the heap extractable, constituting a counterexample.
-On the other hand, it is conceivable that we can make some elements satisfy this property --- for example, it is reasonable to define the |push| operation on heaps such that pushing~|INF| into an empty heap keeps the heap empty --- so producing an empty colist is not always wrong.
-This suggests that we should do a case analysis on~|a| to determine whether to produce an empty or non-empty colist at Goal~4.
+Let us call a state~|s| ``empty'' exactly when |g s ≡ nothing|.
+The proof obligation says that if a state~|s| is empty then the next state |a ◁ s| should also be empty, but obviously this does not hold in general.
+For heapsort, pushing a finite element to a heap always makes the heap extractable, constituting a counterexample.
+On the other hand, it is conceivable that we can make some elements satisfy this property --- for example, it is reasonable to define the |push| operation such that pushing~|INF| into an empty heap keeps the heap empty --- so producing an empty colist is not always wrong.
+
+\varparagraph{Flat elements.}
+The above reasoning suggests that we should do a case analysis on~|a| to determine whether to produce an empty or non-empty colist at Goal~4.
 Let us call an element ``flat'' exactly when subsuming it into an empty state results in another empty state. 
 We should be given a decision procedure |flat?| that can be used to identify flat elements:
 \begin{code}
-flat? : (a : A) →  ({s : S} → g s ≡ nothing → g (a ◁ s) ≡ nothing) ⊎ (GOAL(Set)(8))
+constant flat? : (a : A) →  ({s : S} → g s ≡ nothing → g (a ◁ s) ≡ nothing) ⊎ (GOAL(Set)(8))
 \end{code}
-Traditionally, |flat?| would return a boolean, but using booleans in dependently typed programming almost always raises an alarm since their meaning --- e.g., whether the input satisfies a certain property or not --- will almost always need to be explained later; instead, it is more convenient to make the decision procedure directly return a proof or a refutation of the property.
+Traditionally, |flat?| would return a boolean, but using booleans in dependently typed programming almost always raises an alarm since their meaning --- e.g., whether the input satisfies a certain property or not --- will almost always need to be explained to the type-checker later; instead, it is more convenient to make the decision procedure directly return a proof or a refutation of the property.
 In the case of |flat?|, its type directly says that an element of~|A| is flat or otherwise.
 This ``otherwise'' at Goal~8 also requires some thought.
 We could fill in the negation of the ``flat'' property, but we may need something stronger.
-Unable to decide now, let us leave Goal~8 open for the moment.
+Unable to decide now, let us leave Goal~8 open for the moment, and come back when we have more information.
 
-Abandoning Goal~7, we get back to Goal~4 and refine it into:
+Abandoning Goal~7, we roll back to Goal~4 and refine it into Goals 9~and~10:
 \begin{code}
+fill : {s : S} (a : A) → CoalgList B g s → CoalgList B g (a ◁ s)
+decon (fill a bs(CXT(CoalgList B g s))) with decon bs
 decon (fill a bs) | ⟨ eq(CXT(g s ≡ nothing)) ⟩ with flat? a
 decon (fill a bs) | ⟨ eq ⟩ | inj₁  flat      = ⟨ (GOAL(g (a ◁ s) ≡ nothing)(9)) ⟩
 decon (fill a bs) | ⟨ eq ⟩ | inj₂  not-flat  = (GOAL(CoalgListF B g (a ◁ s))(10))
+decon (fill a bs) | b ∷⟨ eq(CXT(g s ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B g s')) =
+  let (b' , a') LETEQ piece (a , b) in b' ∷⟨ (GOAL(g (a ◁ s) ≡ just (b' , a' ◁ s'))(6)) ⟩ fill a' bs'
 \end{code}
-At Goal~9, we know that |a|~is flat, so it is fine to produce an empty colist; the proof obligation is easily discharged with |flat eq|, where |flat| is the proof given by |flat?| saying that |a|~is flat.
+At Goal~9, we know that |a|~is flat, so it is fine to produce an empty colist; the proof obligation is easily discharged with |flat eq|, where |flat| is the proof given by |flat?| affirming that |a|~is flat.
 
 For Goal~10, we want to invoke |piece| and produce a non-empty colist.
-However, the input colist is empty, so we do not have an input vertical edge for |piece|.
+However, the input colist is empty, so we do not have a vertical input edge for |piece|.
 The situation is not entirely clear here, but let us make some choices first and see if they make sense later.
-Without an input vertical edge, let us again introduce a constant |straight : B|, which solves the problem with |piece|.
-Also, in the coinductive call for generating the tail, we use~|bs| (the only colist available in the context) as its second argument:
+Without an input vertical edge, let us again introduce a |constant straight : B|, which solves the problem with |piece|.
+Also, in the coinductive call that generates the tail, we use~|bs| (the only colist available in the context) as the second argument:
 \begin{code}
-decon (fill a bs) | ⟨ eq ⟩ | inj₂ not-flat =
-  let  (b' , a') LETEQ piece (a , straight)
-  in   b' ∷⟨ (GOAL(g (a ◁ s) ≡ just (b' , a' ◁ s))(11)) ⟩ fill a' bs
+fill : {s : S} (a : A) → CoalgList B g s → CoalgList B g (a ◁ s)
+decon (fill a bs(CXT(CoalgList B g s))) with decon bs
+decon (fill a bs) | ⟨ eq(CXT(g s ≡ nothing)) ⟩ with flat? a
+decon (fill a bs) | ⟨ eq ⟩ | inj₁ flat      = ⟨ flat eq ⟩
+decon (fill a bs) | ⟨ eq ⟩ | inj₂ not-flat  =
+  let (b' , a') LETEQ piece (a , straight) in b' ∷⟨ (GOAL(g (a ◁ s) ≡ just (b' , a' ◁ s))(11)) ⟩ fill a' bs
+decon (fill a bs) | b ∷⟨ eq(CXT(g s ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B g s')) =
+  let (b' , a') LETEQ piece (a , b) in b' ∷⟨ (GOAL(g (a ◁ s) ≡ just (b' , a' ◁ s'))(6)) ⟩ fill a' bs'
 \end{code}
 
-\[ \begin{tikzpicture}[x=12em,y=4em,baseline=(u.base)]
+\varparagraph{Porting the jigsaw condition from the infinite case to the general (possibly finite) case.}
+Now let us examine whether our choices are sensible.
+The expected type at Goal~11 can be depicted as:
+\begin{equation}
+\begin{tikzpicture}[x=12em,y=4em,baseline=(u.base)]
 \node(x) [anchor=center] {|s|};
 \node(x') [below=1 of x,anchor=center] {|s|};
 \node(hx) [left=1 of x,anchor=center] {|a ◁ s|};
@@ -1148,14 +1244,37 @@ decon (fill a bs) | ⟨ eq ⟩ | inj₂ not-flat =
 \draw[serif cm-to] (x) edge[dashed] node(t)[right]{(produce |stright| using~|g|)} (x ||- x'.north);
 \draw[serif cm-to] (hx) edge node(u)[left]{produce~|b'| using~|g|} (hx ||- hx'.north);
 %\node at ($(t)!0.5!(u)$) [anchor=center] {$\Leftarrow$};
-\end{tikzpicture} \]
+\end{tikzpicture}
+\label{eq:jigsaw-nothing}
+\end{equation}
+The dashed transition on the right is not a real state transition --- we know that |s|~is an empty state since in the context we have |eq : g s ≡ nothing|.
+Completing the above diagram~(\ref{eq:jigsaw-nothing}) with the dashed transition allows us to compare it with the diagram~(\ref{eq:jigsaw-infinite}) for the infinite jigsaw condition, and the key to the comparison is to link the notions of empty states in the infinite case and the general (possibly finite) case.
+In the infinite case, we have a condition |straight-production : g∞ e ≡ (straight , e)| saying that the |straight| edge is produced from the empty state~|e|, which remains unchanged after production.
+We could have defined empty states in the infinite case to be the states~|s| such that |g∞ s ≡ (straight , s)| (although this was not necessary).
+Now, the general (possibly finite) case can be thought of as an optimisation of the infinite case.
+We stop producing |straight| edges from empty states --- that is, we modify the coalgebra to return |nothing| from empty states --- because these |straight| edges provide no information: if we omit, and only omit, the production of these |straight| edges, then whenever a vertical input edge is missing we know that it can only be |straight|.
+However, the modification to the coalgebra destroys the production transitions from empty states in the infinite jigsaw condition. What remains is condition~(\ref{eq:jigsaw-just}), and cases involving empty states and |straight| edges as depicted by the diagram~(\ref{eq:jigsaw-nothing}) above are left out.
 
+One thing we can do is merging diagram~(\ref{eq:jigsaw-nothing}) back into condition~(\ref{eq:jigsaw-just}) by relaxing the latter's premise:
 \begin{code}
-jigsaw-condition :
-  {a : A} {b : B} {s s' : S} →
-  g s ≡ just (b , s') ⊎ (g s ≡ nothing × g (a ◁ s) ≢ nothing × b ≡ straight × s' ≡ s) →
-  let (b' , a') LETEQ piece (a , b) in g (a ◁ s) ≡ just (b' , a' ◁ s')
+constant
+  jigsaw-condition :
+    {a : A} {b : B} {s s' : S} →
+    g s ≡ just (b , s') ⊎ (g s ≡ nothing × g (a ◁ s) ≢ nothing × b ≡ straight × s' ≡ s) →
+    let (b' , a') LETEQ piece (a , b) in g (a ◁ s) ≡ just (b' , a' ◁ s')
 \end{code}
+Note that we include |g (a ◁ s) ≢ nothing| in the new part of the premise to rule out the case where |a|~is flat.
+A proof of this type should come from |flat?|, so at Goal~8 we make |flat?| return a proof of |{s : S} → g (a ◁ s) ≢ nothing| when the input element~|a| is not flat.
+Finally, having |jigsaw-condition| in the context is informative enough for Auto to discharge both Goals 6~and~11 for us, and we arrive at the complete program in \autoref{fig:jigsaw-general}.
+
+\varparagraph{Comparison with \varcitet{Nakano-jigsaw}{'s} jigsaw condition.}
+How do our conditions compare with \varcitet{Nakano-jigsaw}{'s}?
+Ours seem to be weaker, but this is probably because our algorithm is not as sophisticated as it can be.
+\citeauthor{Nakano-jigsaw} imposes three conditions, which he refers to collectively as the jigsaw condition: the first one is exactly our |nothing-from-e|, the second one is related to flat elements but more complicated than our corresponding formulation, and the third one, though requiring some decoding, is almost our |jigsaw-condition|.
+Comparing \citeauthor{Nakano-jigsaw}'s third condition with our |jigsaw-condition| reveals that there is one possibility that we did not consider: at Goal~5 we went ahead and produced a non-empty colist, but producing an empty colist was also a possibility.
+Our current |jigsaw| algorithm produces columns of non-decreasing lengths from right to left like:
+\[ \includegraphics{figs/heapsort-optimised-crop.pdf} \]
+If we performed some case analysis at Goal~5 like for Goal~4, we might have been able to come up with an algorithm that can decrease column lengths when going left, saving more jigsaw pieces.
 
 \begin{figure}
 \beforefigurecode
@@ -1178,7 +1297,7 @@ module Jigsaw-General
   decon (fill a bs) | ⟨ eq ⟩ with flat? a 
   decon (fill a bs) | ⟨ eq ⟩ | inj₁ flat      = ⟨ flat eq ⟩
   decon (fill a bs) | ⟨ eq ⟩ | inj₂ not-flat  =
-    let  (b' , a') LETEQ piece (a , flat-edge)
+    let  (b' , a') LETEQ piece (a , straight)
     in   b' ∷⟨ jigsaw-condition (inj₂ (eq , not-flat , refl , refl)) ⟩ fill a' bs
   decon (fill a bs) | b ∷⟨ eq ⟩ bs' =
     let  (b' , a') LETEQ piece (a , b)
