@@ -2,7 +2,7 @@
 %%% Do NOT edit. File created by BibTeX with style
 %%% ACM-Reference-Format-Journals [18-Jan-2012].
 
-\begin{thebibliography}{10}
+\begin{thebibliography}{12}
 
 %%% ====================================================================
 %%% NOTE TO THE USER: you can override these defaults by providing
@@ -65,6 +65,21 @@
 \newblock
 \urldef\tempurl%
 \url{https://doi.org/10.1007/978-3-540-44833-4_1}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Brady}{Brady}{2013}]%
+        {Brady-Idris}
+\bibfield{author}{\bibinfo{person}{Edwin Brady}.}
+  \bibinfo{year}{2013}\natexlab{}.
+\newblock \showarticletitle{Idris, a general-purpose dependently typed
+  programming language: Design and implementation}.
+\newblock \bibinfo{journal}{\emph{Journal of Functional Programming}}
+  \bibinfo{volume}{23}, \bibinfo{number}{5} (\bibinfo{year}{2013}),
+  \bibinfo{pages}{552--593}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1017/S095679681300018X}
 \showDOI{\tempurl}
 
 
@@ -148,6 +163,21 @@
 \urldef\tempurl%
 \url{https://doi.org/10.1017/S0956796812000391}
 \showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Norell}{Norell}{2007}]%
+        {Norell-thesis}
+\bibfield{author}{\bibinfo{person}{Ulf Norell}.}
+  \bibinfo{year}{2007}\natexlab{}.
+\newblock \emph{\bibinfo{title}{Towards a Practical Programming Language based
+  on Dependent Type Theory}}.
+\newblock \bibinfo{thesistype}{Ph.D. Dissertation}. \bibinfo{school}{Chalmers
+  University of Technology}.
+\newblock
+\urldef\tempurl%
+\url{http://www.cse.chalmers.se/~ulfn/papers/thesis.html}
+\showURL{%
+\tempurl}
 
 
 \bibitem[\protect\citeauthoryear{Oliveira}{Oliveira}{2018}]%
