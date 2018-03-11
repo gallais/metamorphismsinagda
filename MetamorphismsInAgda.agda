@@ -91,26 +91,26 @@ module _ {A B S : Set} where
     (straight : B) (straight-production : g∞ e ≡ (straight , e))
     where
 
-    fillᵢᵥ : {s : S} → AlgList A _◁_ e s → Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A _◁_ e t × g∞ s ≡ (b , t)
-    fillᵢᵥ []       = straight , _ , [] , straight-production
-    fillᵢᵥ (a ∷ as) with fillᵢᵥ as
-    fillᵢᵥ (a ∷ as) | b , _ , as' , eq = let (b' , a') = piece (a , b)
+    fillᵢₕ : {s : S} → AlgList A _◁_ e s → Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A _◁_ e t × (g∞ s ≡ (b , t))
+    fillᵢₕ []       = straight , _ , [] , straight-production
+    fillᵢₕ (a ∷ as) with fillᵢₕ as
+    fillᵢₕ (a ∷ as) | b , _ , as' , eq = let (b' , a') = piece (a , b)
                                          in  b' , _ , a' ∷ as' , jigsaw-conditionᵢ eq
 
-    jigsawᵢᵥ : {s : S} → AlgList A _◁_ e s → CoalgList B (just ∘ g∞) s
-    decon (jigsawᵢᵥ as) with fillᵢᵥ as
-    decon (jigsawᵢᵥ as) | b , _ , as' , eq = b ∷⟨ cong just eq ⟩ jigsawᵢᵥ as'
-   
-    fillᵢₕ : {s : S} (a : A) → CoalgList B (just ∘ g∞) s → CoalgList B (just ∘ g∞) (a ◁ s)  
-    decon (fillᵢₕ a bs) with decon bs
-    decon (fillᵢₕ a bs) | ⟨ () ⟩
-    decon (fillᵢₕ a bs) | b ∷⟨ eq ⟩ bs' =
-      let (b' , a') = piece (a , b)
-      in  b' ∷⟨ cong just (jigsaw-conditionᵢ (cong-from-just eq)) ⟩ fillᵢₕ a' bs'
-
     jigsawᵢₕ : {s : S} → AlgList A _◁_ e s → CoalgList B (just ∘ g∞) s
-    decon (jigsawᵢₕ []) = straight ∷⟨ cong just straight-production ⟩ jigsawᵢₕ []
-    jigsawᵢₕ (a ∷ as) = fillᵢₕ a (jigsawᵢₕ as)
+    decon (jigsawᵢₕ as) with fillᵢₕ as
+    decon (jigsawᵢₕ as) | b , _ , as' , eq = b ∷⟨ cong just eq ⟩ jigsawᵢₕ as'
+   
+    fillᵢᵥ : {s : S} (a : A) → CoalgList B (just ∘ g∞) s → CoalgList B (just ∘ g∞) (a ◁ s)  
+    decon (fillᵢᵥ a bs) with decon bs
+    decon (fillᵢᵥ a bs) | ⟨ () ⟩
+    decon (fillᵢᵥ a bs) | b ∷⟨ eq ⟩ bs' =
+      let (b' , a') = piece (a , b)
+      in  b' ∷⟨ cong just (jigsaw-conditionᵢ (cong-from-just eq)) ⟩ fillᵢᵥ a' bs'
+
+    jigsawᵢᵥ : {s : S} → AlgList A _◁_ e s → CoalgList B (just ∘ g∞) s
+    decon (jigsawᵢᵥ []) = straight ∷⟨ cong just straight-production ⟩ jigsawᵢᵥ []
+    jigsawᵢᵥ (a ∷ as) = fillᵢᵥ a (jigsawᵢᵥ as)
 
   module Jigsaw-General
     (_◁_ : A → S → S) (e : S) (g : S → Maybe (B × S))

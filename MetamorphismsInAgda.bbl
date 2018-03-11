@@ -2,7 +2,7 @@
 %%% Do NOT edit. File created by BibTeX with style
 %%% ACM-Reference-Format-Journals [18-Jan-2012].
 
-\begin{thebibliography}{12}
+\begin{thebibliography}{10}
 
 %%% ====================================================================
 %%% NOTE TO THE USER: you can override these defaults by providing
@@ -72,8 +72,8 @@
         {Brady-Idris}
 \bibfield{author}{\bibinfo{person}{Edwin Brady}.}
   \bibinfo{year}{2013}\natexlab{}.
-\newblock \showarticletitle{Idris, a general-purpose dependently typed
-  programming language: Design and implementation}.
+\newblock \showarticletitle{Idris, a General-Purpose Dependently Typed
+  Programming Language: Design and Implementation}.
 \newblock \bibinfo{journal}{\emph{Journal of Functional Programming}}
   \bibinfo{volume}{23}, \bibinfo{number}{5} (\bibinfo{year}{2013}),
   \bibinfo{pages}{552--593}.
@@ -137,25 +137,11 @@
 \tempurl}
 
 
-\bibitem[\protect\citeauthoryear{McBride}{McBride}{2014}]%
-        {McBride-pivotal}
-\bibfield{author}{\bibinfo{person}{Conor McBride}.}
-  \bibinfo{year}{2014}\natexlab{}.
-\newblock \showarticletitle{How to Keep Your Neighbours in Order}. In
-  \bibinfo{booktitle}{\emph{International Conference on Functional
-  Programming}} \emph{(\bibinfo{series}{ICFP'14})}. \bibinfo{publisher}{ACM},
-  \bibinfo{pages}{297--309}.
-\newblock
-\urldef\tempurl%
-\url{https://doi.org/10.1145/2628136.2628163}
-\showDOI{\tempurl}
-
-
 \bibitem[\protect\citeauthoryear{Nakano}{Nakano}{2013}]%
         {Nakano-jigsaw}
 \bibfield{author}{\bibinfo{person}{Keisuke Nakano}.}
   \bibinfo{year}{2013}\natexlab{}.
-\newblock \showarticletitle{Metamorphism in jigsaw}.
+\newblock \showarticletitle{Metamorphism in Jigsaw}.
 \newblock \bibinfo{journal}{\emph{Journal of Functional Programming}}
   \bibinfo{volume}{23}, \bibinfo{number}{2} (\bibinfo{year}{2013}),
   \bibinfo{pages}{161--173}.
@@ -191,22 +177,6 @@
 \newblock
 \urldef\tempurl%
 \url{https://doi.org/10.1016/j.jlamp.2017.09.003}
-\showDOI{\tempurl}
-
-
-\bibitem[\protect\citeauthoryear{Thibodeau, Cave, and Pientka}{Thibodeau
-  et~al\mbox{.}}{2016}]%
-        {Thibodeau-indexed-codata-types}
-\bibfield{author}{\bibinfo{person}{David Thibodeau}, \bibinfo{person}{Andrew
-  Cave}, {and} \bibinfo{person}{Brigitte Pientka}.}
-  \bibinfo{year}{2016}\natexlab{}.
-\newblock \showarticletitle{Indexed Codata Types}. In
-  \bibinfo{booktitle}{\emph{International Conference on Functional
-  Programming}} \emph{(\bibinfo{series}{ICFP'16})}. \bibinfo{publisher}{ACM},
-  \bibinfo{pages}{351--363}.
-\newblock
-\urldef\tempurl%
-\url{https://doi.org/10.1145/3022670.2951929}
 \showDOI{\tempurl}
 
 
