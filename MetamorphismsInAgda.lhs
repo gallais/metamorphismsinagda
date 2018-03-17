@@ -41,6 +41,7 @@
 %format else = "\keyword{else}"
 %format Val = "\constructor{Val}"
 %format Heap = "\constructor{Heap}"
+%format _≡_ = _ ≡ _
 %format refl = "\constructor{refl}"
 %format × = "{×}"
 %format , = "\kern-1pt,"
@@ -251,7 +252,7 @@
 \begin{abstract}
 \begin{NoHyper}
 We conduct an experiment with interactive type-driven development in \Agda, developing algorithms from their specifications encoded as intrinsic types, to see how useful the hints provided by \Agda\ during an interactive development process can be.
-The algorithmic problem we choose is \emph{metamorphisms}, whose definitional behaviour is consuming a data structure to compute an intermediate value and then producing a codata structure from that value, but there are other ways to compute them.
+The algorithmic problem we choose is \emph{metamorphisms}, whose definitional behaviour is consuming a data structure to compute an intermediate value and then producing a codata structure from that value, but there are other ways to compute metamorphisms.
 We develop \varcitet{Gibbons-metamorphisms}{'s} streaming algorithm and \varcitet{Nakano-jigsaw}{'s} jigsaw model interactively with \Agda, turning intuitive ideas about these algorithms into formal conditions and programs that are correct by construction.
 \end{NoHyper}
 \end{abstract}
@@ -291,9 +292,10 @@ We develop \varcitet{Gibbons-metamorphisms}{'s} streaming algorithm and \varcite
 Why do we want to program with full dependent types?
 For larger-scale proofs, writing proof terms in a dependently typed language is usually much less efficient than working with a proof assistant with decent automation.
 What has been more successful with dependently typed programming~(DTP) --- in particular with the use of indexed datatypes --- is intrinsic hygienic guarantee, which tends to work better for smaller, hand-crafted programs: if we need to, for example, track the bounds of indices or work with well-typed syntax trees, let us encode bound and typing constraints in the datatypes of indices and syntax trees so that the type system can help the programmer to enforce the constraints.
-But this kind of guarantee per se is also achievable extrinsically with proof assistants --- we know how to prove theorems saying that indices are always within bounds or that well-typed programs do not go wrong.
+But this kind of guarantee per se is also achievable extrinsically with proof assistants --- we know how to prove theorems saying that indices are always within bounds or that a program transformation always produces well-typed programs.
 The ability to offer this kind of guarantee is not what makes DTP truly shine.
 Rather, the most distinguishing and fascinating aspect of DTP is that it makes the paradigm of \emph{interactive type-driven development} much more powerful: the more properties we encode intrinsically into types, the more hints the type-checker can offer the programmer during an interactive development process, so that the more heavyweight typing becomes an aid rather than a burden.
+A typical example is making the terms of an embedded domain-specific language (DSL) intrinsically typed, so that we are always aware of the precise types of the terms (in the DSL's type system) and guided to construct only well-typed terms.
 
 A natural follow-up question is: how well does interactive type-driven development scale?
 For example, if we encode a complete specification of an algorithmic problem in a type, will the hints provided by the type-checker be useful enough to guide us to an algorithm?
@@ -307,8 +309,8 @@ One such problem that comes to mind is metamorphisms.
 \label{sec:metamorphisms}
 
 A \emph{metamorphism}~\citep{Gibbons-metamorphisms} consumes a data structure to compute an intermediate value and then produces a new data structure using the intermediate value as the seed.
-Like \citet{Gibbons-metamorphisms}, we will focus on \emph{list metamorphisms}, i.e., metamorphisms consuming and producing lists.
-Two of the examples of list metamorphisms given by \citet{Gibbons-metamorphisms} are:
+Following \citet{Gibbons-metamorphisms}, we will focus on \emph{list metamorphisms}, i.e., metamorphisms consuming and producing lists.
+Two of the examples of list metamorphisms given by \citeauthor{Gibbons-metamorphisms} are:
 \begin{itemize}
 \item \emph{Base conversion for fractions}: A list of digits representing a fractional number in a particular base (e.g., $0.625_{10}$) can be converted to another list of digits in a different base (e.g., $0.101_2$).
 The conversion is a metamorphism because we can consume an input list of digits to compute the value represented by the list, and then produce an output list of digits representing the same value.
@@ -324,14 +326,16 @@ Let us first say more precisely what metamorphisms are.
 Formally, a metamorphism is a \emph{fold} followed by an \emph{unfold}, the former consuming a finite data structure and the latter producing a potentially infinite codata structure.
 
 \varparagraph{Lists for consumption.}
-For list metamorphisms, the inputs to be consumed are the standard finite lists:
+For list metamorphisms, the inputs to be consumed are the standard finite lists:%
+\footnote{In \Agda, a name with underscores like~|_∷_| can be used as an operator, and the underscores indicate where the arguments go.
+As an exception, in this paper we often write a binary infix operator like~|_◁_| in \name{Haskell} syntax like |(◁)|, which deviates from \Agda\ syntax.}
 \begin{code}
 data List (A : Set) : Set where
   []   : List A
   _∷_  : A → List A → List A
 \end{code}
 The |foldr| operator subsumes the elements (of type~|A|) of a list into a state (of type~|S|) using a ``right algebra'' |(◁) : A → S → S| and an initial/empty state |e : S|:%
-\footnote{As an exception, we often write a binary infix operator like~|_◁_| in \name{Haskell} syntax like |(◁)|.}
+\footnote{In the type of a function, arguments wrapped in curly brackets are implicit, and can be left out (if they are inferable by \Agda) when applying the function.}
 \begin{code}
 foldr : {A S : Set} → (A → S → S) → S → List A → S
 foldr (◁) e []        = e
@@ -351,7 +355,8 @@ We will refer to a list metamorphism using |foldr| as a ``right metamorphism'', 
 For the producing part of list metamorphisms, where we need to produce potentially infinite lists, in a total language like \Agda\ we can no longer use |List|, whose elements are necessarily finite; instead, we should switch to a \emph{codatatype} of \emph{colists}, which are potentially infinite.
 Dual to a datatype, which is defined by all the possible ways to \emph{construct} its elements, a codatatype is defined by all the possible ways to \emph{deconstruct} (or observe) its elements.
 For a colist, we only need one way of deconstruction: exposing the colist's outermost structure, which is either empty or a pair of a head element and a tail colist.
-In \Agda\ this can be expressed as a coinductive record type |CoList| with only one field, which is a sum (empty or non-empty) structure; for cosmetic reasons, this sum structure is defined (mutually recursively with |CoList|) as a datatype |CoListF|:
+In \Agda\ this can be expressed as a coinductive record type |CoList| with only one field, which is a sum (empty or non-empty) structure; for cosmetic reasons, this sum structure is defined (mutually recursively with |CoList|) as a datatype |CoListF|:%
+\footnote{\Agda\ supports constructor overloading, so we are allowed to reuse |[]| and |_∷_| as the names of the constructors of |CoListF|.}
 \begin{code}
 mutual
 
@@ -365,7 +370,8 @@ mutual
     _∷_  : B → CoList B → CoListF B
 \end{code}
 Note that |decon| denotes a function of type |{B : Set} → CoList B → CoListF B|, and plays the role of the deconstructor of |CoList|.
-Now we can define the standard |unfoldr| operator, which uses a coalgebra |g : S → Maybe (B × S)| to unfold a colist from a given state:
+Now we can define the standard |unfoldr| operator, which uses a coalgebra |g : S → Maybe (B × S)| to unfold a colist from a given state:%
+\footnote{The datatype |Maybe X| has two constructors, |nothing : Maybe X| and |just : X → Maybe X|.}
 \begin{code}
 unfoldr : {B S : Set} → (S → Maybe (B × S)) → S → CoList B
 decon (unfoldr g s) with g s
@@ -442,9 +448,11 @@ The empty list is classified under the index |e LETEQ foldr (◁) e []|.
 For the cons case, if a tail~|as| is classified under~|s|, meaning that |foldr (◁) e as LETEQ s|, then the whole list |a ∷ as| should be classified under |a ◁ s| since |foldr (◁) e (a ∷ as) LETEQ a ◁ foldr (◁) e as LETEQ a ◁ s|.
 
 \varparagraph{Coalgebraic ornamentation.}
-Dually, given a coalgebra |g : S → Maybe (B × S)|, we can revise |CoList B| into a family of types |CoalgList B g : S → Set| such that a colist falls into |CoalgList B g s| if it is unfolded from~|s| using~|g|.
+Dually, given a coalgebra |g : S → Maybe (B × S)|, we can refine |CoList B| into a family of types |CoalgList B g : S → Set| such that a colist falls into |CoalgList B g s| if it is unfolded from~|s| using~|g|.
 (Note that, extensionally, every |CoalgList B g s| has exactly one inhabitant; intensionally there may be different ways to describe/compute that inhabitant, though.)
-Again the definition of |CoalgList| is obtained by fusing |unfoldr| into |CoList|:
+Again the definition of |CoalgList| is obtained by fusing |unfoldr| into |CoList|:%
+\footnote{The operator |_≡_ : {A : Set} → A → A → Set| is the equality type constructor in the \Agda\ Standard Library.
+An equality type |x ≡ y| is inhabited by the |refl| constructor if |x|~has the same normal form as~|y|, or uninhabited otherwise.}
 \begin{code}
 mutual
 
@@ -473,34 +481,37 @@ implements the right metamorphism |unfoldr g ∘ foldr (◁) e|, since the index
 
 \varparagraph{Left metamorphisms.}
 What about left metamorphisms?
-Thankfully, we do not need to define another variant of |AlgList| due to an old trick that expresses |foldl| in terms of |foldr|.
+Conveniently, we do not need to define another variant of |AlgList| due to an old trick that expresses |foldl| in terms of |foldr|.
 Given a list |as : List A|, think of the work of |foldl (▷) e as| as (i)~partially applying |flip (▷) : A → S → S| (where |flip f x y LETEQ f y x|) to every element of~|as| to obtain state transformations of type |S → S|, (ii)~composing the state transformations from left to right, and finally (iii)~applying the resulting composite transformation to~|e|.
 The left-to-right order appears only in step~(ii), which, in fact, can also be performed from right to left since function composition is associative.
 Formally, we have:
 \begin{code}
-foldl (▷) e as = foldr (left-alg (▷)) id as e
+foldl (▷) e as = foldr (from-left-alg (▷)) id as e
 \end{code}
 where
 \begin{code}
-left-alg : {A S : Set} → (S → A → S) → A → (S → S) → (S → S)
-left-alg (▷) a t = t ∘ flip (▷) a
+from-left-alg : {A S : Set} → (S → A → S) → A → (S → S) → (S → S)
+from-left-alg (▷) a t = t ∘ flip (▷) a
 \end{code}
+and |id : {A : Set} → A → A| is the identity function.
 The type of left metamorphic algorithms can then be specified as:
 \begin{code}
-(s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
+(s : S) → {h : S → S} → AlgList A (from-left-alg (▷)) id h → CoalgList B g (h s)
 \end{code}
 which says that if the initial state is~|s| and the input list folds to a state transformation~|h|, then the output colist should be unfolded from |h s|.
 
-\section{A Definitional Implementation of Metamorphisms}
+\section{Metamorphisms, Definitionally}
 \label{sec:cbp}
 
 To warm up, let us start from the left metamorphic type and implement the most straightforward algorithm that strictly follows the definition of metamorphisms, \textbf{c}onsuming all inputs \textbf{b}efore \textbf{p}roducing outputs:
 \begin{code}
-cbp : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
-cbp s as(CXT(AlgList A (left-alg (▷)) id h)) = (GOAL(CoalgList B g (h s))(0))
+cbp : (s : S) → {h : S → S} → AlgList A (from-left-alg (▷)) id h → CoalgList B g (h s)
+cbp s as(CXT(AlgList A (from-left-alg (▷)) id h)) = (GOAL(CoalgList B g (h s))(0))
 \end{code}
-We will try to recreate in this paper what it feels like to program in the interactive development environment provided by \Agda\ (as an Emacs mode).
-In this environment, we can leave ``holes'' in programs and fill or refine them, often with \Agda's help.
+We will try to recreate in this paper what it feels like to program interactively with \Agda.%
+\footnote{More precisely, it is the interactive development environment included in the \Agda\ package that we interact with.
+This interactive development environment is implemented as an Emacs mode, which explains the form of the commands that we will see below.}
+During interaction, we can leave ``holes'' in programs and fill or refine them, often with \Agda's help.
 Such a hole is called an \emph{interaction point} or a \emph{goal}, of which the \highlight{goal}{\text{green-shaded part}} above is an example.
 At goals, \Agda\ can be instructed to provide various information and even perform some program synthesis.
 One most important piece of information for a goal is its expected type, which we always display in curly brackets.
@@ -510,11 +521,11 @@ In the program above, we annotate~|as| with its type because the expected type a
 
 Now let us try to develop the program.
 We are trying to consume the input list first, so we pattern match on the argument |as| to see if there is anything to consume.
-In \Agda\ this is as easy as putting |as| into Goal~0 and firing a ``case splitting'' command (\texttt{C-c C-c}); the program will then be split into two clauses, listing all possible cases of~|as|:
+In \Agda\ this is as easy as putting |as| into Goal~0 and firing a ``case split'' command (\texttt{C-c C-c}); the program will then be split into two clauses, listing all possible cases of~|as|:
 \begin{code}
-cbp : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
+cbp : (s : S) → {h : S → S} → AlgList A (from-left-alg (▷)) id h → CoalgList B g (h s)
 cbp s [] = (GOAL(CoalgList B g s)(1))
-cbp s (a ∷ as(CXT(AlgList A (left-alg (▷)) id h))) = (GOAL(CoalgList B g (h (s ▷ a)))(2))
+cbp s (a ∷ as(CXT(AlgList A (from-left-alg (▷)) id h))) = (GOAL(CoalgList B g (h (s ▷ a)))(2))
 \end{code}
 Now Goal~0 is gone, and two new goals appear.
 Note that the expected types of the two new goals have changed: at Goal~1, for example, we see that the output colist should be unfolded directly from the initial state~|s| since the input list is empty.
@@ -524,14 +535,14 @@ We continue to interact with and refine these two new goals.
 \varparagraph{Consumption.}
 If there is something to consume, that is, the input list is non-empty, we go into Goal~2, where we keep consuming the tail |as| but from a new state:
 \begin{code}
-cbp : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
+cbp : (s : S) → {h : S → S} → AlgList A (from-left-alg (▷)) id h → CoalgList B g (h s)
 cbp s [] = (GOAL(CoalgList B g s)(1))
 cbp s (a ∷ as) = cbp (GOAL(S)(3)) as
 \end{code}
 What is this new state? It should be the one obtained by subsuming~|a| into~|s|, i.e., |s ▷ a|.
 \Agda\ knows this too, in fact --- firing the ``Auto'' command (\texttt{C-c C-a}) at Goal~3 completely fulfills it:
 \begin{code}
-cbp : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
+cbp : (s : S) → {h : S → S} → AlgList A (from-left-alg (▷)) id h → CoalgList B g (h s)
 cbp s [] = (GOAL(CoalgList B g s)(1))
 cbp s (a ∷ as) = cbp (s ▷ a) as
 \end{code}
@@ -540,40 +551,41 @@ cbp s (a ∷ as) = cbp (s ▷ a) as
 If there is nothing more to consume, that is, the input list is empty, we go into Goal~1, where we should produce the output colist; to specify the colist, we should say what will result if we |decon|struct the colist.
 That is, we perform a copattern match (which can be done by \Agda\ if we give it the case splitting command (\texttt{C-c C-c}) without specifying a variable):
 \begin{code}
-cbp : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
+cbp : (s : S) → {h : S → S} → AlgList A (from-left-alg (▷)) id h → CoalgList B g (h s)
 decon (cbp s []) = (GOAL(CoalgListF B g s)(4))
 cbp s (a ∷ as) = cbp (s ▷ a) as
 \end{code}
 The result of deconstruction depends on whether |g|~can produce anything from the current state~|s|, so we pattern match on |g s|, splitting Goal~4 into Goals 5~and~6:
 \begin{code}
-cbp : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
+cbp : (s : S) → {h : S → S} → AlgList A (from-left-alg (▷)) id h → CoalgList B g (h s)
 decon (cbp s []) with g s
 decon (cbp s []) | nothing        = (GOAL(CoalgListF B g s)(5))
 decon (cbp s []) | just (b , s')  = (GOAL(CoalgListF B g s)(6))
 cbp s (a ∷ as) = cbp (s ▷ a) as
 \end{code}
-If |g s| is |nothing| (Goal~5), the output colist is empty; otherwise |g s| is some |just (b , s')| (Goal~6), in which case we use~|b| as the head and go on to produce the tail from~|s'|.
+If |g s| is |nothing| (Goal~5), the output colist is empty; otherwise |g s| is |just (b , s')| for some |b|~and~|s'| (Goal~6), in which case we use~|b| as the head and go on to produce the tail from~|s'|.
 We therefore refine the two goals manually into:
 \begin{code}
-cbp : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
+cbp : (s : S) → {h : S → S} → AlgList A (from-left-alg (▷)) id h → CoalgList B g (h s)
 decon (cbp s []) with g s
 decon (cbp s []) | nothing        = ⟨ (GOAL(g s ≡ nothing)(7)) ⟩
 decon (cbp s []) | just (b , s')  = b ∷⟨ (GOAL(g s ≡ just (b , s'))(8)) ⟩ cbp s' []
 cbp s (a ∷ as) = cbp (s ▷ a) as
 \end{code}
+(More specifically, the refinement from Goal~5 to Goal~7, for example, can be done by filling ``|⟨ ? ⟩|'' into Goal~5 and give the ``refine'' command (\texttt{C-c C-r}) to \Agda.)
 
 We are now required to discharge equality proof obligations about |g s|, and the obligations exactly correspond to the results of the |with|-matching.
-This is precisely a situation in which the |inspect| idiom of the \Agda\ standard library can help.
+This is precisely a situation in which the |inspect| idiom in the \Agda\ Standard Library can help.
 With |inspect|, we can obtain an equality proof of the right type in each of the cases of the |with|-matching:
 \begin{code}
-cbp : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
+cbp : (s : S) → {h : S → S} → AlgList A (from-left-alg (▷)) id h → CoalgList B g (h s)
 decon (cbp s []) with g s         | inspect g s
 decon (cbp s []) | nothing        | [ eq(CXT(g s ≡ nothing))        ] = ⟨ (GOAL(g s ≡ nothing)(7)) ⟩
 decon (cbp s []) | just (b , s')  | [ eq(CXT(g s ≡ just (b , s')))  ] = b ∷⟨ (GOAL(g s ≡ just (b , s'))(8)) ⟩ cbp s' []
 cbp s (a ∷ as) = cbp (s ▷ a) as
 \end{code}
 Both goals can now be discharged with |eq|, and we arrive at a complete program, shown in \autoref{fig:cbp}.
-As explained in \autoref{sec:specification}, the correctness of this program is established by type-checking.
+As explained in \autoref{sec:specification}, the correctness of this program is established by type-checking --- no additional proofs are needed.
 
 \begin{figure}
 \beforefigurecode
@@ -582,7 +594,7 @@ module ConsumingBeforeProducing
   ((▷) : S → A → S) (g : S → Maybe (B × S))
   where
 
-  cbp : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
+  cbp : (s : S) → {h : S → S} → AlgList A (from-left-alg (▷)) id h → CoalgList B g (h s)
   decon (cbp s []) with g s         | inspect g s
   decon (cbp s []) | nothing        | [ eq ] = ⟨ eq ⟩
   decon (cbp s []) | just (b , s')  | [ eq ] = b ∷⟨ eq ⟩ cbp s' []
@@ -592,10 +604,10 @@ module ConsumingBeforeProducing
 \label{fig:cbp}
 \end{figure}
 
-\section{Streaming Metamorphisms}
+\section{The Streaming Algorithm}
 \label{sec:streaming}
 
-As \citet{Gibbons-metamorphisms} noted, (list) metamorphisms in general cannot be automatically optimised in terms of time and space, but in some cases it is possible to compute a list metamorphism using a \emph{streaming algorithm}, which can produce an initial segment of the output colist from an initial segment of the input list.
+As \citet{Gibbons-metamorphisms} noted, metamorphisms in general cannot be automatically optimised in terms of time and space, but in some cases it is possible to compute a list metamorphism using a \emph{streaming algorithm}, which can produce an initial segment of the output colist from an initial segment of the input list.
 For example, when converting $0.625_{10}$ to $0.101_2$, after consuming the first decimal digit~$6$ and reaching the state $(0.6\,,\;0.01\,,\;0.5)$, we can directly produce the first binary digit~$1$ because we know that the number will definitely be greater than $0.5$.
 Streaming is not always possible, of course.
 Heapsort is a counterexample: no matter how many input elements have been consumed, it is always possible that a minimum element --- which should be the first output element --- has yet to appear, and thus we can never produce the first output element before we see the whole input list.
@@ -631,33 +643,32 @@ There should be some condition under which we can stream metamorphisms, and we s
 
 We start from the same left metamorphic type:
 \begin{code}
-stream : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
-stream s as(CXT(AlgList A (left-alg (▷)) id h)) = (GOAL(CoalgList B g (h s))(0))
+stream : (s : S) → {h : S → S} → AlgList A (from-left-alg (▷)) id h → CoalgList B g (h s)
+stream s as(CXT(AlgList A (from-left-alg (▷)) id h)) = (GOAL(CoalgList B g (h s))(0))
 \end{code}
 In contrast to |cbp| (\autoref{sec:cbp}/\autoref{fig:cbp}), this time we try to produce using~|g| whenever possible, so our first step is to pattern match on |g s| (and we also introduce |decon| and |inspect|, which will be needed like in |cbp|):
 \begin{code}
-stream : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
-decon (stream s as(CXT(AlgList A (left-alg (▷)) id h))  ) with g s         | inspect g s
-decon (stream s as                                      ) | nothing        | [ eq ] = (GOAL(CoalgListF B g (h s))(1))
-decon (stream s as                                      ) | just (b , s')  | [ eq ] = (GOAL(CoalgListF B g (h s))(2))
+stream : (s : S) → {h : S → S} → AlgList A (from-left-alg (▷)) id h → CoalgList B g (h s)
+decon (stream s as(CXT(AlgList A (from-left-alg (▷)) id h))) with g s | inspect g s
+decon (stream s as)  | nothing        | [ eq ] = (GOAL(CoalgListF B g (h s))(1))
+decon (stream s as)  | just (b , s')  | [ eq ] = (GOAL(CoalgListF B g (h s))(2))
 \end{code}
 
 \varparagraph{Consumption.}
 For Goal~1, we cannot produce anything since |g s| is |nothing|, but this does not mean that the output colist is empty --- we may be able to produce something once we consume the input list and advance to a new state.
 We therefore pattern match on the input list, splitting Goal~1 into Goals 3~and~4:
 \begin{code}
-stream : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
-decon (stream s as                                            )  with g s         | inspect g s
-decon (stream s []                                            )  | nothing        | [ eq ] = (GOAL(CoalgListF B g s)(3))
-decon (stream s (a ∷ as(CXT(AlgList A (left-alg (▷)) id h)))  )  | nothing        | [ eq ] =
-{-"\hfill"-} (GOAL(CoalgListF B g (h (s ▷ a)))(4))
-decon (stream s as                                            )  | just (b , s')  | [ eq ] =
-{-"\hfill"-} (GOAL(CoalgListF B g (h s))(2))
+stream : (s : S) → {h : S → S} → AlgList A (from-left-alg (▷)) id h → CoalgList B g (h s)
+decon (stream s as  )  with g s         | inspect g s
+decon (stream s []  )  | nothing        | [ eq ] = (GOAL(CoalgListF B g s)(3))
+decon (stream s (a ∷ as(CXT(AlgList A (from-left-alg (▷)) id h))))
+                       | nothing        | [ eq ] = (GOAL(CoalgListF B g (h (s ▷ a)))(4))
+decon (stream s as  )  | just (b , s')  | [ eq ] = (GOAL(CoalgListF B g (h s))(2))
 \end{code}
 The two goals are similar to what we have seen in |cbp|.
 At Goal~3, there is nothing more in the input list to consume, so we should end production and emit an empty colist, while for Goal~4 we should advance to the new state |s ▷ a| and set the tail |as| as the list to be consumed next:
 \begin{code}
-stream : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
+stream : (s : S) → {h : S → S} → AlgList A (from-left-alg (▷)) id h → CoalgList B g (h s)
 decon (stream s as        )  with g s        | inspect g s
 decon (stream s []        ) | nothing        | [ eq ] = ⟨ eq ⟩
 decon (stream s (a ∷ as)  ) | nothing        | [ eq ] = decon (stream (s ▷ a) as)
@@ -668,11 +679,12 @@ decon (stream s as        ) | just (b , s')  | [ eq ] = (GOAL(CoalgListF B g (h 
 Goal~2 is the interesting case.
 Using~|g|, from the current state~|s| we can produce~|b|, which we set as the head of the output colist, and advance to a new state~|s'|, from which we produce the tail of the colist:
 \begin{code}
-stream : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
-decon (stream s as                                    ) with g s         | inspect g s
-decon (stream s []                                    ) | nothing        | [ eq ] = ⟨ eq ⟩
-decon (stream s (a ∷ as)                              ) | nothing        | [ eq ] = decon (stream (s ▷ a) as)
-decon (stream s as(CXT(AlgList A (left-alg f) id h))  ) | just (b , s')  | [ eq(CXT(g s ≡ just (b , s'))) ] =
+stream : (s : S) → {h : S → S} → AlgList A (from-left-alg (▷)) id h → CoalgList B g (h s)
+decon (stream s as        )  with g s         | inspect g s
+decon (stream s []        )  | nothing        | [ eq ] = ⟨ eq ⟩
+decon (stream s (a ∷ as)  )  | nothing        | [ eq ] = decon (stream (s ▷ a) as)
+decon (stream s as(CXT(AlgList A (from-left-alg f) id h)))
+                             | just (b , s')  | [ eq(CXT(g s ≡ just (b , s'))) ] =
 {-"\hfill"-} b ∷⟨ (GOAL(g (h s) ≡ just (b , h s'))(5)) ⟩ stream s' as
 \end{code}
 
@@ -751,23 +763,23 @@ constant streaming-condition :  {a : A} {b : B} {s s' : S} →
                                 g s ≡ just (b , s') → g (s ▷ a) ≡ just (b , s' ▷ a)
 \end{code}
 We use a hypothetical |constant| keyword here to emphasise that |streaming-condition| is a constant made available to us and does not need to be defined.
-In the complete program in \autoref{fig:stream}, the functions defined in this section are collected in a module, and |streaming-condition| becomes a parameter of this module.
+In the complete program in \autoref{fig:stream}, the functions defined in this section are collected in a module, and |streaming-condition| is made a parameter of this module.
 
 \varparagraph{Wrapping up.}
 Back to Goal~5, where we should prove the commutativity of |g|~and~|h|.
 All it should take is a straightforward induction to extend the streaming condition along the axis of consumption --- so straightforward, in fact, that \Agda\ can do most of the work for us!
 We know that we need a helper function |streaming-lemma| that performs induction on |as| and uses |eq| as a premise; by filling |streaming-lemma as eq| into Goal~5 and firing a ``helper type'' command (\texttt{C-c C-h}), \Agda\ can generate a type for |streaming-lemma|, which, after removing some over-generalisations and unnecessary definition expansions, is:
 \begin{code}
-streaming-lemma :  {b : B} {s s' : S} {h : S → S} → AlgList A (left-alg (▷)) id h →
+streaming-lemma :  {b : B} {s s' : S} {h : S → S} → AlgList A (from-left-alg (▷)) id h →
                    g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
-streaming-lemma as(CXT(AlgList A (left-alg (▷)) id h)) eq(CXT(g s ≡ just (b , s'))) = (GOAL(g (h s) ≡ just (b , h s'))(6))
+streaming-lemma as(CXT(AlgList A (from-left-alg (▷)) id h)) eq(CXT(g s ≡ just (b , s'))) = (GOAL(g (h s) ≡ just (b , h s'))(6))
 \end{code}
 \Agda\ then accepts |streaming-lemma as eq| as a type-correct term for Goal~5, completing the definition of |stream|.
 
 Now all that is left is the body of |streaming-lemma| (Goal~6).
-If we give a hint that case-splitting is needed (\texttt{-c}), Auto can complete the definition of |streaming-lemma| on its own, yielding (modulo one cosmetic variable renaming):
+If we give a hint that case splitting is needed (\texttt{-c}), Auto can complete the definition of |streaming-lemma| on its own, yielding (modulo one cosmetic variable renaming):
 \begin{code}
-streaming-lemma :  {b : B} {s s' : S} {h : S → S} → AlgList A (left-alg (▷)) id h →
+streaming-lemma :  {b : B} {s s' : S} {h : S → S} → AlgList A (from-left-alg (▷)) id h →
                    g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
 streaming-lemma []        eq = eq
 streaming-lemma (a ∷ as)  eq = streaming-lemma as (streaming-condition eq)
@@ -804,22 +816,22 @@ module Streaming
                           g s ≡ just (b , s') → g (s ▷ a) ≡ just (b , s' ▷ a))
   where
 
-  streaming-lemma :  {b : B} {s s' : S} {h : S → S} → AlgList A (left-alg (▷)) id h →
+  streaming-lemma :  {b : B} {s s' : S} {h : S → S} → AlgList A (from-left-alg (▷)) id h →
                      g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
   streaming-lemma []        eq = eq
   streaming-lemma (a ∷ as)  eq = streaming-lemma as (streaming-condition eq)
 
-  stream : (s : S) → {h : S → S} → AlgList A (left-alg (▷)) id h → CoalgList B g (h s)
+  stream : (s : S) → {h : S → S} → AlgList A (from-left-alg (▷)) id h → CoalgList B g (h s)
   decon (stream s as         ) with g s         | inspect g s
   decon (stream s []         ) | nothing        | [ eq ] = ⟨ eq ⟩
   decon (stream s (a ∷ as)   ) | nothing        | [ eq ] = decon (stream (s ▷ a) as)
   decon (stream s as         ) | just (b , s')  | [ eq ] = b ∷⟨ streaming-lemma as eq ⟩ stream s' as
 \end{code}
-\caption{Streaming metamorphisms}
+\caption{The streaming algorithm}
 \label{fig:stream}
 \end{figure}
 
-\section{Jigsaw Metamorphisms}
+\section{The Jigsaw Model}
 \label{sec:jigsaw}
 
 Let us now turn to right metamorphisms.
@@ -828,13 +840,14 @@ Recall that a right metamorphic type has the form:
 {s : S} → AlgList A (◁) e s → CoalgList B g s
 \end{code}
 which, unlike a left metamorphic type, does not have an initial state as one of its arguments.
-The only state appearing in the type is the implicit argument |s : S|, which is the intermediate state reached after consuming the entire input list, and it is unrealistic to assume that this intermediate state is also given at the start of a metamorphic computation --- for example, when computing the heapsort metamorphism, we would not expect a heap containing all the elements of the input list to be given to an algorithm as input.
-This suggests that |s|~plays a role only in the type-level specification, and we should avoid using~|s| in the actual computation, so that it becomes computationally irrelevant and could be somehow erased; correspondingly, the indices and proofs in |AlgList| and |CoalgList| could all be erased eventually, turning a program with a right metamorphic type into one that maps plain lists to colists.
+The only state appearing in the type is the implicit argument |s : S|, which is the intermediate state reached after consuming the entire input list, and it is unreasonble to assume that this intermediate state is also given at the start of a metamorphic computation --- for example, when computing the heapsort metamorphism, we would not expect a heap containing all the elements of the input list to be given to an algorithm as input.
+This suggests that |s|~plays a role only in the type-level specification, and we should avoid using~|s| in the actual computation --- that is, $s$~should be computationally irrelevant, and could be somehow erased.
+Correspondingly, the indices and proofs in |AlgList| and |CoalgList| could all be erased eventually, turning a program with a right metamorphic type into one that maps plain lists to colists.
 Does this mean that we can bypass computation with states and just work with list elements to compute a metamorphism?
 Surprisingly, \citet{Nakano-jigsaw} has such a computation model, in which it is possible to compute a metamorphism without using the states mentioned in its specification!
-(By contrast, in |cbp| (\autoref{sec:cbp}/\autoref{fig:cbp}) and |stream| (\autoref{sec:streaming}/\autoref{fig:stream}), we can hope to erase the indices and proofs in |AlgList| and |CoalgList| but not the input state, which is used in the computation.)
+(By contrast, in |cbp| (\autoref{sec:cbp}/\autoref{fig:cbp}) and |stream| (\autoref{sec:streaming}/\autoref{fig:stream}), we can hope to erase the indices and proofs in |AlgList| and |CoalgList| but not the input state, which is used relevantly in the computation.)
 
-\subsection{The Jigsaw Model}
+\subsection{Computation in the Jigsaw Model}
 \label{sec:model}
 
 In \varcitet{Nakano-jigsaw}{'s} model, a computation transforms a |List A| to a |CoList B|, and to program its behaviour, we need to provide a suitable function |piece : A × B → B × A|.
@@ -847,7 +860,7 @@ Moreover, the values on the top and right edges should determine those on the le
 
 Below is an illustration of an ongoing computation:
 \[
-\raisebox{-.5\height+1mm+.125pt}{\includegraphics{figs/board-empty-crop.pdf}}
+\raisebox{-.5\height+.5pt}{\includegraphics{figs/board-empty-crop.pdf}}
 \quad\leadsto\quad
 \raisebox{-.5\height}{\includegraphics{figs/board-filling-crop.pdf}}
 \quad\leadsto\quad
@@ -890,7 +903,8 @@ jigsawᵢₕ as(CXT(AlgList A (◁) e s)) = (GOAL(CoalgList B (just ∘ g∞) s)
 One possible placement strategy is to place one row of jigsaw pieces at a time.
 Placing a row is equivalent to transforming an input list~|as| into a new one~|as'| and also a vertical edge~|b|:
 \[ \includegraphics{figs/row-crop.pdf} \]
-We therefore introduce the following function |fillᵢₕ| for filling a row:
+We therefore introduce the following function |fillᵢₕ| for filling a row:%
+\footnote{|Σ[ x ∈ X ] P x| is the dependent pair type from the \Agda\ Standard Library.}
 \begin{code}
 fillᵢₕ : {s : S} → AlgList A (◁) e s → B × Σ[ t ∈ S ] AlgList A (◁) e t
 fillᵢₕ as = (GOAL(B × Σ[ t ∈ S ] AlgList A (◁) e t)(1))
@@ -901,7 +915,7 @@ We revise Goal~0 into:
 \begin{code}
 jigsawᵢₕ : {s : S} → AlgList A (◁) e s → CoalgList B (just ∘ g∞) s
 decon (jigsawᵢₕ as(CXT(AlgList A (◁) e s))) with fillᵢₕ as
-decon (jigsawᵢₕ as) | (b , t , as') = b ∷⟨ (GOAL(just (g∞ s) ≡ just (b , t))(2)) ⟩ jigsawᵢₕ as'
+decon (jigsawᵢₕ as) | b , t , as' = b ∷⟨ (GOAL(just (g∞ s) ≡ just (b , t))(2)) ⟩ jigsawᵢₕ as'
 \end{code}
 Goal~2 demands an equality linking |s|~and~|t|, which are the input and output indices of |fillᵢₕ|.
 This suggests that |fillᵢₕ| is responsible for not only computing~|t| but also establishing the relationship between |t|~and~|s|.
@@ -912,7 +926,7 @@ fillᵢₕ as = (GOAL(Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A (◁) e t × (g∞ s
 
 jigsawᵢₕ : {s : S} → AlgList A (◁) e s → CoalgList B (just ∘ g∞) s
 decon (jigsawᵢₕ as) with fillᵢₕ as
-decon (jigsawᵢₕ as) | (b , _ , as' , eq) = b ∷⟨ cong just eq ⟩ jigsawᵢₕ as'
+decon (jigsawᵢₕ as) | b , _ , as' , eq = b ∷⟨ cong just eq ⟩ jigsawᵢₕ as'
 \end{code}
 (The combinator `|cong just|' has type |{X : Set} {x x' : X} → x ≡ x' → just x ≡ just x'|.)
 
@@ -1032,7 +1046,7 @@ module Jigsaw-Infinite-Horizontal
   decon (jigsawᵢᵥ as) with fillᵢₕ as
   decon (jigsawᵢᵥ as) | b , _ , as' , eq = b ∷⟨ cong just eq ⟩ jigsawᵢᵥ as'
 \end{code}
-\caption{Infinite jigsaw metamorphisms --- horizontal placement}
+\caption{Metamorphisms in the infinite jigsaw model with the horizontal placement strategy}
 \label{fig:jigsaw-infinite-horizontal}
 \end{figure}
 
@@ -1082,7 +1096,7 @@ fillᵢᵥ : {s : S} (a : A) → CoalgList B (just ∘ g∞) s → CoalgList B (
 decon (fillᵢᵥ a bs(CXT(CoalgList B (just ∘ g∞) s))) with decon bs
 decon (fillᵢᵥ a bs) | ⟨ eq(CXT(just (g∞ s) ≡ nothing)) ⟩ = (GOAL(CoalgListF B (just ∘ g∞) (a ◁ s))(5))
 decon (fillᵢᵥ a bs) | b ∷⟨ eq(CXT(just (g∞ s) ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B (just ∘ g∞) s')) =
-  (GOAL(CoalgListF B (just ∘ g∞) (a ◁ s))(6))
+{-"\hfill"-} (GOAL(CoalgListF B (just ∘ g∞) (a ◁ s))(6))
 \end{code}
 For Goal~5, since the coalgebra |just ∘ g∞| in the type of~|bs| never returns |nothing|, it is impossible for~|bs| to be empty.
 We can convince \Agda\ that this case is impossible by matching~|eq| with the absurd pattern~|()|, saying that |eq|~cannot possibly exist (and \Agda\ accepts this because a |just|-value can never be equal to |nothing|):
@@ -1091,11 +1105,11 @@ fillᵢᵥ : {s : S} (a : A) → CoalgList B (just ∘ g∞) s → CoalgList B (
 decon (fillᵢᵥ a bs(CXT(CoalgList B (just ∘ g∞) s))) with decon bs
 decon (fillᵢᵥ a bs) | ⟨ () ⟩
 decon (fillᵢᵥ a bs) | b ∷⟨ eq(CXT(just (g∞ s) ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B (just ∘ g∞) s')) =
-  (GOAL(CoalgListF B (just ∘ g∞) (a ◁ s))(6))
+{-"\hfill"-} (GOAL(CoalgListF B (just ∘ g∞) (a ◁ s))(6))
 \end{code}
 The real work is done at Goal~6, where |bs|~is deconstructed into its head~|b| and tail~|bs'|:
 \[ \includegraphics{figs/column-coinductive-case-crop.pdf} \]
-We invoke the |piece| function to transform |a|~and~|b| to |b'|~and~|a'|; the head of the output colist is then~|b'|, and the tail is coinductively computed from |a'|~and~|bs'|:
+We invoke the |piece| function to transform |a|~and~|b| into |b'|~and~|a'|; the head of the output colist is then~|b'|, and the tail is coinductively computed from |a'|~and~|bs'|:
 \begin{code}
 fillᵢᵥ : {s : S} (a : A) → CoalgList B (just ∘ g∞) s → CoalgList B (just ∘ g∞) (a ◁ s)
 decon (fillᵢᵥ a bs(CXT(CoalgList B (just ∘ g∞) s))) with decon bs
@@ -1138,7 +1152,7 @@ module Jigsaw-Infinite-Vertical
   decon (jigsawᵢᵥ []) = straight ∷⟨ cong just straight-production ⟩ jigsawᵢᵥ []
   jigsawᵢᵥ (a ∷ as) = fillᵢᵥ a (jigsawᵢᵥ as)
 \end{code}
-\caption{Infinite jigsaw metamorphisms --- vertical placement}
+\caption{Metamorphisms in the infinite jigsaw model with the vertical placement strategy}
 \label{fig:jigsaw-infinite-vertical}
 \end{figure}
 
@@ -1219,7 +1233,7 @@ decon (fill a bs) | b ∷⟨ eq(CXT(g s ≡ just (b , s'))) ⟩ bs'(CXT(CoalgLis
 But the proof obligation indicates that this is not a right choice.
 Let us call a state~|s| ``empty'' exactly when |g s ≡ nothing|.
 The proof obligation says that if a state~|s| is empty then the next state |a ◁ s| should also be empty, but obviously this does not hold in general.
-For heapsort, pushing a finite element to a heap always makes the heap non-empty, constituting a counterexample.
+For heapsort, pushing a finite element to a heap always results in a non-empty heap, constituting a counterexample.
 On the other hand, it is conceivable that we can make some elements satisfy this property --- for example, it is reasonable to define the |push| operation on heaps such that pushing~|INF| into an empty heap keeps the heap empty --- so producing an empty colist is not always wrong.
 
 \varparagraph{Flat elements.}
@@ -1239,9 +1253,9 @@ Abandoning Goal~7, we roll back to Goal~4 and refine it into Goals 9~and~10:
 \begin{code}
 fill : {s : S} (a : A) → CoalgList B g s → CoalgList B g (a ◁ s)
 decon (fill a bs(CXT(CoalgList B g s))) with decon bs
-decon (fill a bs) | ⟨ eq(CXT(g s ≡ nothing))  ⟩ with flat? a
-decon (fill a bs) | ⟨ eq                      ⟩ | inj₁  flat      = ⟨ (GOAL(g (a ◁ s) ≡ nothing)(9)) ⟩
-decon (fill a bs) | ⟨ eq                      ⟩ | inj₂  not-flat  = (GOAL(CoalgListF B g (a ◁ s))(10))
+decon (fill a bs) | ⟨ eq(CXT(g s ≡ nothing)) ⟩ with flat? a
+decon (fill a bs) | ⟨ eq ⟩ | inj₁  flat      = ⟨ (GOAL(g (a ◁ s) ≡ nothing)(9)) ⟩
+decon (fill a bs) | ⟨ eq ⟩ | inj₂  not-flat  = (GOAL(CoalgListF B g (a ◁ s))(10))
 decon (fill a bs) | b ∷⟨ eq(CXT(g s ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B g s')) =
   let (b' , a') LETEQ piece (a , b) in b' ∷⟨ (GOAL(g (a ◁ s) ≡ just (b' , a' ◁ s'))(6)) ⟩ fill a' bs'
 \end{code}
@@ -1250,14 +1264,14 @@ At Goal~9, we know that |a|~is flat, so it is fine to produce an empty colist; t
 For Goal~10, we want to invoke |piece| and produce a non-empty colist.
 However, the input colist is empty, so we do not have a vertical input edge for |piece|.
 The situation is not entirely clear here, but let us make some choices first and see if they make sense later.
-Without an input vertical edge, let us again introduce a |constant straight : B|, which solves the problem with |piece|.
+Without an input vertical edge, let us again introduce a |constant straight : B|, which solves the problem about using |piece|.
 Also, in the coinductive call that generates the tail, we use~|bs| (the only colist available in the context) as the second argument:
 \begin{code}
 fill : {s : S} (a : A) → CoalgList B g s → CoalgList B g (a ◁ s)
 decon (fill a bs(CXT(CoalgList B g s))) with decon bs
-decon (fill a bs) | ⟨ eq(CXT(g s ≡ nothing))  ⟩ with flat? a
-decon (fill a bs) | ⟨ eq                      ⟩ | inj₁ flat      = ⟨ flat eq ⟩
-decon (fill a bs) | ⟨ eq                      ⟩ | inj₂ not-flat  =
+decon (fill a bs) | ⟨ eq(CXT(g s ≡ nothing)) ⟩ with flat? a
+decon (fill a bs) | ⟨ eq ⟩ | inj₁ flat      = ⟨ flat eq ⟩
+decon (fill a bs) | ⟨ eq ⟩ | inj₂ not-flat  =
   let (b' , a') LETEQ piece (a , straight) in b' ∷⟨ (GOAL(g (a ◁ s) ≡ just (b' , a' ◁ s))(11)) ⟩ fill a' bs
 decon (fill a bs) | b ∷⟨ eq(CXT(g s ≡ just (b , s'))) ⟩ bs'(CXT(CoalgList B g s')) =
   let (b' , a') LETEQ piece (a , b) in b' ∷⟨ (GOAL(g (a ◁ s) ≡ just (b' , a' ◁ s'))(6)) ⟩ fill a' bs'
@@ -1307,7 +1321,7 @@ Ours seem to be weaker, but this is probably because our algorithm is not as sop
 Comparing \citeauthor{Nakano-jigsaw}'s third condition with our |jigsaw-condition| reveals that there was one possibility that we did not consider: at Goal~5 we went ahead and produced a non-empty colist, but producing an empty colist was also a possibility.
 Our current |jigsaw| algorithm places columns of non-decreasing lengths from right to left like:
 \[ \includegraphics{figs/heapsort-optimised-crop.pdf} \]
-If we performed some case analysis at Goal~5 like for Goal~4, we might have been able to come up with an algorithm that can decrease column lengths when going left, saving more jigsaw pieces (although probably not for heapsort).
+If we performed some case analysis at Goal~5 like for Goal~4, we might have been able to come up with an algorithm that could decrease column lengths when going left, saving more jigsaw pieces (although probably not for heapsort).
 
 \begin{figure}
 \beforefigurecode
@@ -1340,14 +1354,14 @@ module Jigsaw-General
   decon (jigsaw [])  = ⟨ nothing-from-e ⟩
   jigsaw (a ∷ as)    = fill a (jigsaw as)
 \end{code}
-\caption{General (possibly finite) jigsaw metamorphisms}
+\caption{Metamorphisms in the general (possibly finite) jigsaw model (with the vertical placement strategy)}
 \label{fig:jigsaw-general}
 \end{figure}
 
 \section{Discussion}
 \label{sec:discussion}
 
-We end our experiment at this point, but apparently the story does not end here.
+We end our experiment at this point, but apparently there are more stories to be told.
 It was slightly mysterious that we chose to implement the streaming algorithm with a left metamorphic type and the jigsaw model with a right metamorphic type --- is this pairing necessary or coincidental?
 It turns out that the jigsaw model also works for left metamorphisms, and we even get a slightly more general algorithm if we start from a left metamorphic type --- this we left as an exercise for the reader.
 (One solution is included in the supplementary code.)
@@ -1355,10 +1369,10 @@ Streaming, on the other hand, seems to be inherently associated with left metamo
 One way to explain this might be as follows: During streaming, we consume an initial segment of an input list, pause to do some production, and then resume consumption of the rest of the list.
 The natural way to do this is to consume the list from the left, examining and removing head elements and keeping the tail for the resumption of production.
 That is, we are really treating the input list as a finite colist.
-This suggests that a streaming algorithm in general should be a transformation from colists to colists, both possibly infinite.
-We might also consider using the jigsaw model to transform colists to colists, but the situation can be more complicated: if we think of computation in the jigsaw model as updating the output colist~(\autoref{sec:vertical}), in general the output colist can change forever so that we are never sure whether any of the output elements has stabilised.
-More fundamentally, the current specification of metamorphisms --- a fold followed by an unfold --- is no longer adequate: since the input colist can be infinite, we have to replace the fold with some infinite consumption process, meaning that in general we can no longer reach an intermediate state and switch to production.
-A new chapter of the story awaits to be told.
+This suggests that a streaming algorithm in general should be a transformation from colists to colists, both possibly infinite --- that is, it is in general a ``stream processor''~\citep{Ghani-stream-processors}.
+We might also consider using the jigsaw model to implement stream processors, but the situation can be more complicated: if we think of computation in the jigsaw model as updating the output colist~(\autoref{sec:vertical}), in general the output colist can change forever so that we are never sure whether any of the output elements has stabilised.
+More fundamentally, the current metamorphic specification --- a fold followed by an unfold --- is no longer adequate: since the input colist can be infinite, we have to replace the fold with some infinite consumption process, meaning that in general we can no longer reach an intermediate state and switch to production.
+We have to go back to the basics and think about how we might specify the behaviour of stream processors, and tell a new story from there.
 
 We should say that this paper is mostly a faithful report of the actual developments of the programs from their specifications (as types).
 There are only minor deviations from the actual developments for streamlining the presentation, and apart from the general ideas of streaming and the jigsaw model, few hints were taken from the original papers by \citet{Gibbons-metamorphisms} and \citet{Nakano-jigsaw}.
@@ -1373,7 +1387,7 @@ Fundamentally, our development is just the familiar mathematical activity of for
 \Agda\ does make the process unusually smooth, though.
 In addition to the automation provided by \Agda, we speculate that the smoothness is due to what we might call ``proof locality'', by which we mean that proofs appear near where they matter.
 As a result, the programmer gains better ``situation awareness'' of what a program means while constructing the program.
-This was helpful when, for example, we saw at Goal~7 in \autoref{sec:general} that we did not make a right choice because the obligation was too strong for the premises we had, and avoided going down the wrong path.
+This was helpful when, for example, we saw at Goal~7 in \autoref{sec:general} that we did not make a right choice because the obligation was too strong for the premise we had, and avoided going down the wrong path.
 By contrast, with the extrinsic approach, proofs are formally constructed only later and separately, and it would be harder for the programmer to develop the same level of ``situation awareness'', especially without the help of a proof assistant.
 
 The experiment is far from decisive when it comes to determining the effectiveness of the paradigm of interactive type-driven development, though.

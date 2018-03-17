@@ -7,6 +7,7 @@ open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 
+
 data List (A : Set) : Set where
   []  : List A
   _∷_ : A → List A → List A
@@ -14,6 +15,10 @@ data List (A : Set) : Set where
 foldr : {A S : Set} → (A → S → S) → S → List A → S
 foldr _◁_ e []       = e
 foldr _◁_ e (a ∷ as) = a ◁ foldr _◁_ e as
+
+foldl : {A S : Set} → (S → A → S) → S → List A → S
+foldl _▷_ e []       = e
+foldl _▷_ e (a ∷ as) = foldl _▷_ (e ▷ a) as
 
 mutual
 
@@ -48,8 +53,13 @@ mutual
 
 open CoalgList
 
-left-alg : {A S : Set} → (S → A → S) → A → (S → S) → (S → S)
-left-alg _▷_ a t = t ∘ flip _▷_ a
+from-left-alg : {A S : Set} → (S → A → S) → A → (S → S) → (S → S)
+from-left-alg _▷_ a t = t ∘ flip _▷_ a
+
+foldl-as-foldr : {A S : Set} {_▷_ : S → A → S} {e : S}
+                 (as : List A) → foldl _▷_ e as ≡ foldr (from-left-alg _▷_) id as e
+foldl-as-foldr []       = refl
+foldl-as-foldr (a ∷ as) = foldl-as-foldr as
 
 module _ {A B S : Set} where
 
@@ -57,7 +67,7 @@ module _ {A B S : Set} where
     (_▷_ : S → A → S) (g : S → Maybe (B × S))
     where
 
-    cbp : (s : S) → {h : S → S} → AlgList A (left-alg _▷_) id h → CoalgList B g (h s)
+    cbp : (s : S) → {h : S → S} → AlgList A (from-left-alg _▷_) id h → CoalgList B g (h s)
     decon (cbp s []) with g s        | inspect g s
     decon (cbp s []) | nothing       | [ eq ] = ⟨ eq ⟩
     decon (cbp s []) | just (b , s') | [ eq ] = b ∷⟨ eq ⟩ cbp s' []
@@ -70,11 +80,11 @@ module _ {A B S : Set} where
     where
 
     streaming-lemma : {b : B} {s s' : S} {h : S → S} →
-                      AlgList A (left-alg _▷_) id h → g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
+                      AlgList A (from-left-alg _▷_) id h → g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
     streaming-lemma []       eq = eq
     streaming-lemma (a ∷ as) eq = streaming-lemma as (streaming-condition eq)
 
-    stream : (s : S) → {h : S → S} → AlgList A (left-alg _▷_) id h → CoalgList B g (h s)
+    stream : (s : S) → {h : S → S} → AlgList A (from-left-alg _▷_) id h → CoalgList B g (h s)
     decon (stream s as      ) with g s        | inspect g s
     decon (stream s []      ) | nothing       | [ eq ] = ⟨ eq ⟩
     decon (stream s (a ∷ as)) | nothing       | [ eq ] = decon (stream (s ▷ a) as)
@@ -155,6 +165,6 @@ module _ {A B S : Set} where
       in  b' ∷⟨ cong just (jigsaw-condition (cong-from-just eq)) ⟩ fillₗᵢ bs' a'
 
     jigsawₗᵢ : {s : S} → CoalgList B (just ∘ g) s →
-              {h : S → S} → AlgList A (left-alg _▷_) id h → CoalgList B (just ∘ g) (h s)
+              {h : S → S} → AlgList A (from-left-alg _▷_) id h → CoalgList B (just ∘ g) (h s)
     jigsawₗᵢ bs []       = bs
     jigsawₗᵢ bs (a ∷ as) = jigsawₗᵢ (fillₗᵢ bs a) as

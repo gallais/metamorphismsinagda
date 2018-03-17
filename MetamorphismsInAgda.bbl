@@ -2,7 +2,7 @@
 %%% Do NOT edit. File created by BibTeX with style
 %%% ACM-Reference-Format-Journals [18-Jan-2012].
 
-\begin{thebibliography}{10}
+\begin{thebibliography}{11}
 
 %%% ====================================================================
 %%% NOTE TO THE USER: you can override these defaults by providing
@@ -80,6 +80,22 @@
 \newblock
 \urldef\tempurl%
 \url{https://doi.org/10.1017/S095679681300018X}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Ghani, Hancock, and Pattinson}{Ghani
+  et~al\mbox{.}}{2009}]%
+        {Ghani-stream-processors}
+\bibfield{author}{\bibinfo{person}{Neil Ghani}, \bibinfo{person}{Peter
+  Hancock}, {and} \bibinfo{person}{Dirk Pattinson}.}
+  \bibinfo{year}{2009}\natexlab{}.
+\newblock \showarticletitle{Representations of Stream Processors Using Nested
+  Fixed Points}.
+\newblock \bibinfo{journal}{\emph{Logical Methods in Computer Science}}
+  \bibinfo{volume}{5}, \bibinfo{number}{3:9} (\bibinfo{year}{2009}).
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.2168/LMCS-5(3:9)2009}
 \showDOI{\tempurl}
 
 
