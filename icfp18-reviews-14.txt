@@ -1,0 +1,557 @@
+ICFP '18 Paper #14 Reviews and Comments
+===========================================================================
+Paper #14 Programming Metamorphic Algorithms in Agda (Functional Pearl)
+
+
+Review #14A
+===========================================================================
+
+Overall merit
+-------------
+B. OK paper, but I will not champion it
+
+Reviewer expertise
+------------------
+X. I am an expert in this area
+
+Paper summary
+-------------
+This paper propose a journey in dependently type driven development, focusing 
+on the implementation in Agda of metamorphism algorithms, which combine both inductive 
+and coinductive data. The paper first introduce the specification of the type of left and 
+right metamorphisms. Then the paper goes to the implementation of various metamorphisms
+from the literature, by explaining each stage of build in Agda, using a coloured interface to 
+make it easy to follow to the reader. The first example is “consuming all inputs before producing output“.
+Then the authors explain/program interactively the streaming algorithm, which can produce an initial segment 
+of the output colist from an initial segment of the input list. During implementation, some side conditions
+on the indices are made explicit (and somehow forced by the type checker), which correspond to the original 
+Gibbon’s streaming condition. Finally, the authors study the Jigsaw model of Nakano, recovering again 
+similar conditions to Nakano’s one. Overall, this is a very nicely written paper, pleasant to read, submitted as a functional pearl, but I would
+even say it could be marked as being in the “Education” topic of interest as I would rather advice 
+this paper to students.
+
+The focus on metamorphisms is very accurate as it is, as the authors advocate “not too complicated 
+and also not too trivial.” 
+
+I like the colouring convention to make Agda code readable and provide additional type information.
+
+The specification of the type of metamorphism is neat and makes use of non trivial encoding 
+such as McBride’s algebraic ornamentation and coinductive data. (This is for the not too trivial side).
+
+But then, the concrete example are sufficiently simple to be explained in detail, with each stage of build. 
+Maybe only the Jigsaw algorithm becomes a bit hard to follow (This is for the not too complicated side).
+
+* On the weak points of the paper:
+
+I regret a bit the exclusive focus on Agda, in particular, the use of irrelevance
+suggest that CIC could be a better setting when it amounts to specifying part of the data
+that is not relevant. The authors admit themselves “it would probably be better if we declare the argument as irrelevant”.
+This is precisely not guarantee by their dependent type. **Somehow it goes against the general slogan.** Here, the user
+have to take care by hand not to use the argument. 
+
+I also found a bit debatable the argumentation that interactive dependent programming increases the “situation 
+awareness” of the user. For some developers and/or examples, it is do demanding to produce both the code
+and the proof of its specification at the same time. Never being able to let correctness aside for some time.  
+
+Minor comments: 
+
+- this work seems to be very doable in Coq using tactic, why focusing on Agda style then ?
+- typo diagram (6) “produce stright”
+- the flat? condition of Figure 5 is not exhaustive. Why not a sigma type rather than a dependent product for g(a . s) noteq nothing ?
+
+
+
+Review #14B
+===========================================================================
+* Updated: 7 May 2018 9:54:41pm EDT
+
+Overall merit
+-------------
+B. OK paper, but I will not champion it
+
+Reviewer expertise
+------------------
+X. I am an expert in this area
+
+Paper summary
+-------------
+Metamorphisms are programs that consist of a fold followed by an
+unfold. This paper steps through a few examples of metamorphisms,
+developed interactively in a type-driven style in Agda. The paper is
+simultaneously a demonstration of interactive development and of
+dependently-typed programming with intrinsic verification.
+
+The paper begins by defining metamorphisms, finite lists, and
+potentially-infinite colists. The colists are necessary because some
+of the metamorphisms that will be discussed might have infinite
+output, such as base conversion that maps 0.1 in base 3 to
+0.33333... in base 10.
+
+Following this, a more general definition of metamorphisms is
+presented in which there need not be an explicit reduction to an
+intermediate seed value to be unfolded. This is represented by
+AlgLists and CoalgLists, which are algebra-indexed lists and
+coalgebra-indexed colists, respectively. A metamorphism is then a
+function from an AlgList to a CoalgList.
+
+The simplest metamorphism is one that consumes all input before
+producing an output. This metamorphism is used as an initial example
+of interactive editing. Following that, the function is rewritten to
+produce output as quickly as possible, so that a prefix of the output
+can be produced as soon as the relevant prefix of the input has been
+consumed. This turns out to require a helper lemma, which is
+identified to be Gibbons's streaming condition.
+
+The next step is to explore Nakano's jigsaw model, in which
+computation is presented as a grid of cells. Each cell transforms two
+inputs into two outputs. The paper explores three variations on the
+jigsaw model: horizontal placement of one row of cells at a time where
+the output colist is infinite, vertical placement of columns with
+infinite output, and vertical placement with potentially-finite
+output. Just as the streaming condition arose as a needed lemma for
+ordinary metamorphisms, a jigsaw condition related (but not identical)
+to Nakano's arises here.
+
+The paper concludes with a discussion of the pragmatics of intrinsic
+vs extrinsic verification as well as an exhortation to apply these
+techniques to more sophisticated examples.
+
+Rating rationale and comments for author
+----------------------------------------
+This functional pearl provides an interactive walkthrough of a session
+of programming with Agda, highlighting opportunities for fun while
+programming. Agda is indeed quite fun to program with, and this fun
+shines through in the presentation. The paper also positions itself as
+a general demonstration of type-driven interactive development,
+advocating for the general style of programming that Agda does so
+well. The running examples are well-chosen, being good illustrations
+of the technique while still being easy to comprehend directly.
+
+Unfortunately, the narrative breaks down at various points. 
+
+On page 4, the fact that heapsort transforms a list to a colist is
+missing an important discussion. A list is always finite, while a
+colist may not be. The output type of heapsort is thus missing an
+important property: that it is finite. This is not discussed, but it
+was bothersome when reading.
+
+The invocation of ornamental algebras on pages 4--5 was somewhat
+mystifying.  The connection between the datatypes that receive a
+universe coding in that paper and the AlgList and CoalgList datatypes
+in this paper is not immediately apparent. Also, is AlgList short for
+"Algebra list" or "algorithm list"? Both "alg"-words occur in close
+proximity to the definition, and the paper isn't clear as to which is
+meant.
+
+The connection between the metamorphic heapsort and the jigsaw
+heapsort remained mysterious after reading the paper. There is no
+reason provided, other than a reference to Nakano's paper, to believe
+that this is heapsort. Why is it the case? The example, while
+illustrative for understanding the jigsaw model, left me with more
+questions than answers.
+
+The tight coupling to the specifics of Agda's current user interface
+is problematic. A paper at a venue like ICFP should remain relevant in
+ten years, but there is no guarantee that languages like Agda will
+still use the same Emacs keybindings or even Emacs at all. It would be
+nice if the paper merely explained which interactive editing
+operations are available, and then stated that it is invoking them
+without details like how the variable to split on is indicated by
+writing it in the hole or the -c option. At times, it reads more like
+an Emacs tutorial than a functional pearl. On the other hand, the
+highlighted subscripts for giving the types of variables in scope and
+the indication of goal types in holes was very well-chosen. It's easy
+to get a sense of the proof state and the problem to be solved without
+getting overwhelmed. The numbering of holes is also very good.
+
+In particular, the discussion of the jigsaw model's encoding becomes
+somewhat difficult to follow due to too much discussion of Agda's
+UI. Details about how to work with the interface are interleaved with
+a discussion of the high-level goal being worked on, and the context
+switching made it necessary to read the section twice, skipping the
+irrelevant parts each time.
+
+The invocation of the "inspect" idiom came as a surprise, and the
+conclusion admits that this was later inserted once the need for it
+became apparent rather than being presciently inserted during the
+original development of the program. Additionally, the inspect idiom
+is not particularly well-explained, and the discussion could use a
+sentence along the lines of "In each case, a proof is required that g
+s is equal to the appropriate pattern, but the with-rule operates by
+replacing the expression being examined everywhere. Matching on the
+result of inspect inserts the necessary equality proof into the
+pattern match." Alternatively, the paper could also pretend that Agda
+has syntax a la Idris's built-in support for "inspect"-like matching
+using the "proof" keyword after "with" in order to sidestep that
+discussion.
+
+The typesetting in the paper is a pleasing departure from many papers
+that include Agda code. Mixfix operators are used tastefully where
+they can really enhance readability, the code samples are readable in
+odd light conditions and when printed on bad printers, and the fonts
+fit in well with the surrounding prose and mathematical text. The
+figures are also very good at communicating the functioning of the
+jigsaw model, although it may have been easier to read the jigsaws if
+they were flipped so that information flowed left to right, similarly
+to in the text in the surrounding paper.
+
+In the conclusion, "more sophisticated algorithmic problems" are
+referred to as potentially the boost that the paradigm of type-driven
+interactive development needs. What is the evidence that it needs a
+boost? Why should we expect this to be the case? If it's a throwaway
+remark, it'd be best to replace it or at least not have it as the last
+sentence. If not, a bit more explication and argument is necessary for
+it to make sense.
+
+Overall, while the paper is a well-written, beautifully typeset
+exploration of an important paradigm in functional programming, it
+doesn't convey the kinds of high-level insight that a functional pearl
+ideally should. Additionally, there have been a number of demonstrations
+of interactive hole-driven program construction at ICFP, including one
+by Conor McBride in 2012 and one by Ulf Norell in 2013. While those
+were not written up in the same format as this paper, there are a
+number of available written materials that show the efficacy of the
+approach, including tutorials and documentation. Stump's book on Agda
+and Brady's book on Idris are also suitable published sources on this
+style.
+
+Nitpicks:
+
+ * Papers that make essential use of color should warn the reader of
+   that fact somewhere on the first page, so that they can send it to
+   the right printer. It seems customary to do this immediately after
+   the abstract.
+
+ * On the first page, the parenthetical remark "is intrinsic hygienic
+   guarantee" occurs. It's not clear what this means.
+
+
+ * Agda is written in all caps throughout, for no clear reason. In Ulf
+   Norell's thesis, which is the cited reference for Agda, it is not
+   an acronym and it is written "Agda" rather than "AGDA".
+
+ * On page 2, there is an unlucky line break in "may have to be
+   infinite - 0.1_3 = 0.333..._{10}, for example."  The dash looks
+   like a negative number.
+
+ * On page 3, the phrase "way of deconstruction" is a bit
+   awkward. What about something like "only one observation is
+   possible"?
+
+ * The number of footnotes is a bit overwhelming. Can they be reduced,
+   with the text either included in the main text if important or
+   deleted if not?
+
+ * The references to Auto should really be to Agsy, the proof-search
+   tool. The appropriate citation is by Lindblad and Benke from TYPES
+   2004.
+
+ * On page 13, the phrase "the only place we can put in a piece" has
+   an ambiguous parse. I first thought it was implying that a place
+   would be inserted into a piece, which made no sense. Please
+   consider a different phrasing.
+
+ * Page 14 introduces the IH subscript in names, short for "infinite
+   horizontal". This took some thought to unpack - I initially thought
+   it meant "inductive hypothesis", which led me astray from the
+   narrative for a while. A similar issue happened with the IV
+   subscript, which I first thought was "four". Consider adding an
+   expansion of these abbreviations where they are first used.
+
+ * There is some stuffy language use, like referring to the reader in
+   third person ("the interested reader is referred to X", "Y is left
+   as an exercise for the reader"). Consider replacing these with
+   something less alienating, such as "consult X" and "Y is not
+   fleshed out here, but the same techniques apply". Likewise,
+   "obviously" on page 21 only insults readers for whom it was not
+   obvious.
+
+ * On page 23, when Goal 8 is solved, it looks like it's precisely the
+   negation that was delayed for later. If it is, this should be
+   pointed out, and if not, the difference should be highlighted. I
+   was left wondering.
+
+ * Page 25 refers to Nakano's treatment of the jigsaw model as
+   "somewhat obscure". This seems unnecessarily negative.
+
+ * Use of "as" as a variable name is confusing, as it looks like "as".
+
+ * The IH and IV subscripts are not well explained. IH in particular
+   is easy to confuse with "inductive hypothesis".
+
+# After Author Response
+
+Having thought about the paper more and read the author's response, I'm more positive about the direction taken in this paper. The focus on the specifics of the UI make more sense, and can indeed serve as an interesting time capsule, much like old books on Interlisp, Self, Nuprl, and Smalltalk.
+
+Here are replies to replies to specific points:
+
+> >    On page 4, the fact that heapsort transforms a list to a colist is missing an important discussion. A list is always finite, while a colist may not be. The output type of heapsort is thus missing an important property: that it is finite. This is not discussed, but it was bothersome when reading.
+
+> It is conceivable that heapsort produces an infinite colist though, which is a fact mentioned at the beginning of Section 6.2 (634–636). Even for the ordinary heapsort, the fact that production always ends is just an additional property not relevant to the development of the algorithm, and I don’t see why its omission is bothersome. Can you please elaborate?
+
+The issue is that the intrinsic style of using types for correctness consists of selecting types that represent only the particular data structures that are desired, both to rule out incorrect inputs and to ensure correct outputs. Surely part of the correctness specification for a sorting algorithm is that the the output list is the same length as the input list, but a datatype that can represent infinite lists represents many lists that are not the same length as the (finite) input.
+
+This isn't a huge problem, but it does seem to merit a note in the discussion.
+
+> >    The invocation of ornamental algebras on pages 4--5 was somewhat mystifying. The connection between the datatypes that receive a universe coding in that paper and the AlgList and CoalgList datatypes in this paper is not immediately apparent.
+
+> I don’t see why it is essential to explain in the paper the connection between the formalisation in McBride’s paper and the use of the technique. For this paper’s presentation, it suffices to understand why the index is the result of the fold.
+
+Presumably the citation was added to show a connection between this paper and McBride's paper. But reading the relevant section of this paper did not make the nature of that connection particularly clear to me, leaving it a bit of a mystery why McBride's was cited there.
+
+> >    The connection between the metamorphic heapsort and the jigsaw heapsort remained mysterious after reading the paper. There is no reason provided, other than a reference to Nakano's paper, to believe that this is heapsort. Why is it the case?
+
+> The general relationship between metamorphisms and the jigsaw model is explained twice, in different ways, after the horizontal and vertical strategies are presented (762–773 and 906–920). I didn’t instantiate the explanations for heapsort, but I can easily do that in the revision.
+
+I think that this would help readers for whom this paper is the first introduction to the jigsaw model.
+
+> >    In particular, the discussion of the jigsaw model's encoding becomes somewhat difficult to follow due to too much discussion of Agda's UI. Details about how to work with the interface are interleaved with a discussion of the high-level goal being worked on, and the context switching made it necessary to read the section twice, skipping the irrelevant parts each time.
+
+> I am confused. Now the paper introduces the Agda UI while working on the simplest case in Section 4, where there is little algorithmic content, and the readers’ main job there is to familiarise themselves with the UI. By the time we reach Section 6 we have covered all of Agda’s UI, and we work almost exclusively at a high level in Section 6.
+
+> >    The invocation of the "inspect" idiom came as a surprise, and the conclusion admits that this was later inserted once the need for it became apparent rather than being presciently inserted during the original development of the program.
+
+> Note that this surprising invocation was done only in Section 5. Section 4 introduced the inspect idiom only when needed.
+
+That makes sense.
+
+> >    Additionally, the inspect idiom is not particularly well-explained, and the discussion could use a sentence along the lines of "In each case, a proof is required that g s is equal to the appropriate pattern, but the with-rule operates by replacing the expression being examined everywhere. Matching on the result of inspect inserts the necessary equality proof into the pattern match."
+
+> Actually explaining with-generalisation seems slightly too detailed to me. At this point, the high-level intention is merely obtaining the suitable equality proofs. But I’m fine with adding more explanations.
+
+I think that, if this paper is to serve as a tutorial of this style of programming, then explaining the with-rule is pretty important.
+
+> >    Alternatively, the paper could also pretend that Agda has syntax a la Idris's built-in support for "inspect"-like matching using the "proof" keyword after "with" in order to sidestep that discussion.
+
+> I’m not too comfortable with this alternative, as I intend the development to be as close to the real thing as possible. (And inspect isn’t that distracting, is it..?)
+
+That's a good argument for keeping it as-is. In my experience, many new users struggle with "inspect" - the way it works is a bit subtle. But the higher-level hand-wave is probably good enough here, and some experimentation should do the trick.
+
+>  >  it may have been easier to read the jigsaws if they were flipped so that information flowed left to right, similarly to in the text in the surrounding paper
+
+> This direction is chosen to be the same as the computational direction of foldr (from right to left).
+
+That makes more sense, I suppose, though it wouldn't have occurred to me when reading.
+
+> >    In the conclusion, "more sophisticated algorithmic problems" are referred to as potentially the boost that the paradigm of type-driven interactive development needs. What is the evidence that it needs a boost? Why should we expect this to be the case? If it's a throwaway remark, it'd be best to replace it or at least not have it as the last sentence. If not, a bit more explication and argument is necessary for it to make sense.
+
+> You’re right — this requires more explanation. It’s supposed to echo the question asked in Section 1: “how well does interactive type-driven development scale?” Here the proposal is to think about scalability in the direction of algorithmic sophistication, as a departure from the well-understood examples such as bounds/dimensions and typed EDSLs.
+
+OK. This sounds like a good revision.
+
+> >    Papers that make essential use of color [...]
+
+> But this one doesn’t. Even if the coloured boxes are all printed grey, contextual type information (in subscript) will still be typographically distinguished from goals (with curly brackets and numbers).
+
+OK. Presumably, though, the experience is better in color, and I'm sure I'm not the only one who has to choose a non-default institutional printer to get the colors.
+
+> >    On the first page, the parenthetical remark "is intrinsic hygienic guarantee" occurs. It's not clear what this means.
+
+> Sorry, that is a part of the sentence “What has been more successful with dependently typed programming (DTP) is intrinsic hygienic guarantee”.
+
+Yes, it's clear that it's part of the sentence, but it's not clear to me what it means. This paper is not about Scheme macros, which is the context in which "hygienic guarantees" usually occurs when talking about programming languages, so this presumably refers to something else. Perhaps a different phrasing could be used?
+
+> >    The number of footnotes is a bit overwhelming. Can they be reduced, with the text either included in the main text if important or deleted if not?
+
+> I believe these footnotes are important for people not familiar with Agda syntax, but distracting for Agda programmers who want to read about the metamorphism examples. Separating them seems to be the only way to satisfy both groups.
+
+OK. This is a stylistic choice that I don't think makes a huge difference, though I do question whether experienced Agda users will actually skip footnotes in practice, or whether they will worry about missing out on something relevant and read them all anyway.
+
+> >    On page 23, when Goal 8 is solved, it looks like it's precisely the negation that was delayed for later. If it is, this should be pointed out, and if not, the difference should be highlighted. I was left wondering.
+
+> Reviewer A has a related comment (“the flat? condition of Figure 5 is not exhaustive”).
+
+The improvement you suggest (added discussion about the choice of representation there) sounds like a good idea.
+
+
+
+Review #14C
+===========================================================================
+* Updated: 15 May 2018 4:04:52am EDT
+
+Overall merit
+-------------
+B. OK paper, but I will not champion it
+
+Reviewer expertise
+------------------
+X. I am an expert in this area
+
+Paper summary
+-------------
+This paper explores the interactive derivation of *metamorphic algorithms* in the dependently typed programming language Agda. After introducing the notation and basic constructions such as folds and unfolds, the paper shows how to enforce certain specifications regarding (un)folds intrinsically in the types through ornamentation. The paper then goes on to derive simple metamorphisms (arising from the composition of a fold and unfold) interactively, before exploring (the derivation of) Nakano's Jigsaw Model in Agda.
+
+Rating rationale and comments for author
+----------------------------------------
+This paper does an excellent job of recreating the interactive development experience that Agda offers. The choice of colors, subscripts and formatting make it relatively easy to follow the interactive derivation of programs from their types.
+
+One technical quibble I have is the paper aims to avoid post-hoc extrinsic verification of functions, but the CoalgListF data type (line 218) central to the definition essentially boils down to proving equations of the coalgebra involved. An alternative would be to define the graph of the coalgebra explicitly:
+
+```
+  data CoalgListF (B {S} : Set) (g : S → Maybe (B × S)) : S → Maybe (B × S) -> Set where
+    stop    : {s : S} → CoalgListF B g s nothing
+    step : (b : B) → {s s' : S} →
+            CoalgList B g s' → CoalgListF B g s (just (b , s'))
+```
+
+This choice would be more in line with your AlgList data type (that does not explicitly mention equations) and simplifies some of the remaining derivations. Rather than having to perform the (somewhat convoluted) `with-inspect` in the definition of `cbp` the definition requires only simple pattern matching and no further equations:
+
+```
+    cbp : (s : S) → {h : S → S} → AlgList A (from-left-alg _▷_) id h → CoalgList B g (h s)
+    decon (cbp s []) with g s
+    decon (cbp s []) | just (b , s') = step b (cbp s' [])
+    decon (cbp s []) | nothing = stop
+    cbp s (a ∷ xs) = cbp (s ▷ a) xs
+```
+
+This approach starts to break down as the equations involved become more complex in the later sections -- but it is much more in the spirit of intrinsic verification, exploiting pattern match rather than proving equalities directly. 
+
+This does make me question much is really gained by writing (sometimes quite complex) specifications in the types? You might imagine developing the algorithm itself hand-in-hand with its (extrinsic) proof of correctness, discovering the streaming condition or jigsaw condition from the obligations arising out of the correctness proof as you refine the definition.
+
+The interactive development is not always quite as smooth as the paper presents -- and it would be worthwhile documenting how you can sometimes paint yourself into a corner. For example, in the derivation of `cbp` (line 297) the authors start by filling in the recursive call to `as` leaving the argument of type `S` open; alternatively, the incomplete definition `cbp s ?` would still type check, but be impossible to complete. The only reason the `S` parameter can be guessed (line 304) is because of this careful choice.
+
+The paper mentions several examples, such as the base conversion for fractions or heapsort, but none of these examples are implemented in Agda. I'd find the paper more convincing if it also showed how to reap the rewards of the development effort it undertakes to derive metamorphic algorithms with a handful of concrete examples -- even if they are very simple and/or rely on Agda libraries. Especially for the more complicated derivation of the jigsaw model, a simple example would really help illustrate what has been achieved.
+
+Overall, I think this qualifies as a pearl worth presenting at ICFP; with a bit more polish, it would be a really lovely paper.
+
+# Minor points
+
+* 'full dependent types' (line 23) -- why not just 'dependent types'? Or are there 'half dependent types'?
+* 'partition List A' (line 193) -- I'd avoid using partition here, as it suggests that you're splitting the input list into two parts. Perhaps 'define a family of types', 'witness the result of folding over the list' or something along these lines?
+* 'the metamorphic type is `just . g\inf`' (line 634) -- I read this as 'the metamorphic type is just `. g\inf`'. Can you clarify that just is the constructor just rather than part of the text somehow?
+
+## Comments based on author response
+
+Thank you for your reply. I still believe showing an example metamorphism in Agda (such as heapsort or some other algorithm), would make the paper stronger. Now it seems like you've done all this work, but haven't reaped the rewards!
+
+## Comments based on the PC meeting
+
+We discussed this paper at some length at the PC meeting. We had another PC member that was familiar with Agda, but not overly so, read the paper to assess its merits as documentation of the interactive development experience. Overall, all the reviewers agreed that the paper does a sterling job of presenting the interactive development experience that Agda offers. However, this has been documented by numerous other tutorials and talks on the topic. The overall sentiment was that, while the paper is well-presented and polished, it didn't manage to excite any of the reviewers to the degree that they would be willing to champion the paper.
+
+
+
+Response by Hsiang-Shang Ko <hsiang-shang@nii.ac.jp>
+---------------------------------------------------------------------------
+# Main response
+
+Thank you very much for the reviewing effort. Score-wise you don’t seem enthusiastic about the paper, but what puzzles me is that the reviews actually look pretty favourable. Reviewer A said
+
+> Overall, this is a very nicely written paper, pleasant to read, submitted as a functional pearl, but I would even say it could be marked as being in the “Education” topic of interest as I would rather advice this paper to students.
+
+and the other two reviewers also said something similar. Let me address your two main concerns, in the hope that the paper can at least get discussed at the PC meeting. Also please take into account the fact that pearls almost always need polishing assisted by reviewers, and PACMPL’s two-stage reviewing is ideal for this purpose.
+
+## Positioning of this paper
+
+Reviewer B said this paper “doesn't convey the kinds of high-level insight that a functional pearl ideally should”. I’m not sure what kinds of insight you’re expecting, but I intend this pearl to do one thing well: **to deliver the full experience of interactive type-driven development in Agda to the general FP audience, using a non-trivial and less conventional example**. I imagine the FP/PL community’s impression of Agda basically stays with well-typed interpreters and old-school data structures (e.g., balanced search trees), and want to show them something different. Judging from the reviews, the paper has succeeded. (If not, please do let me know why you don’t think the paper’s examples are satisfactory enough.)
+
+And this paper should be a worthy addition to the literature. Reviewer B continued to say there have been ICFP talks by McBride (2012) and Norell (2013) (which are not written up though) and written materials, e.g., books by Stump and Brady, on this “important paradigm”. If it is an important paradigm, shouldn’t there be more varieties of examples other than the classic ones (as covered by Stump and Brady), and shouldn’t it be exposed to the community more often? (2013 was five years ago!) Not to mention that this is among the few publications that actually reproduce the interactive development experience, using a non-trivial example.
+
+## Focus on Agda
+
+Reviewer A said “I regret a bit the exclusive focus on Agda”, and Reviewer B said “The tight coupling to the specifics of Agda's current user interface is problematic”. However, one conscious design choice I made was exactly to focus on Agda, and include sufficient detail to help even Agda newbies to reproduce the development on their computer. It’s important that this paper will be read by people *now*, and should be helpful to them; for newbies, the more concretely the development is described, the better. Discussing how this is done in Coq/CiC or omitting the specific key bindings (in particular, the well-hidden “helper type” command) will cause distraction. (And I don’t see why seeing old key bindings in a ten-year-old paper will be a problem; in ten years, this will become some kind of documentation of how Agda programming was done.)
+
+# Detailed response (exceeding the 500 word limit)
+
+Responses to wording and typographical comments are omitted. But thank you for those comments!
+
+## Review A
+
+> The authors admit themselves “it would probably be better if we declare the argument as irrelevant”. This is precisely not guarantee by their dependent type. Somehow it goes against the general slogan. Here, the user have to take care by hand not to use the argument.
+
+The reason was given in the paper after the sentence you quoted, and it’s a presentational one: “this irrelevance declaration would then need to be propagated to related parts in AlgList and CoalgList, though, which we are trying to avoid”. At this point of the paper I don’t think it’s worth going back to the definitions and patch them. It disrupts the flow, duplicates the definitions (because the original, proof-relevant versions are still needed for the developments in Sections 3 & 4), and is not the main point anyway (which should be how type information helps to figure out the formal details of the algorithms).
+
+> I also found a bit debatable the argumentation that interactive dependent programming increases the “situation awareness” of the user. For some developers and/or examples, it is do demanding to produce both the code and the proof of its specification at the same time. Never being able to let correctness aside for some time.
+
+Definitely worth debating. And this is indeed a side effect I’m hoping the paper can achieve: to make the DTP community think more about this kind of question.
+
+> this work seems to be very doable in Coq using tactic, why focusing on Agda style then ?
+
+I believe the dominant development style in Coq is the extrinsic one? And there’s a discussion about the intrinsic vs extrinsic styles at the end of the paper.
+
+> the flat? condition of Figure 5 is not exhaustive. Why not a sigma type rather than a dependent product for g(a . s) noteq nothing ?
+
+Sorry, which sigma type? But you’re right, the condition is not exhaustive. I probably chose it somewhat arbitrarily, with heapsort in mind. Adding some discussion here might be interesting.
+
+## Review B
+
+> On page 4, the fact that heapsort transforms a list to a colist is missing an important discussion. A list is always finite, while a colist may not be. The output type of heapsort is thus missing an important property: that it is finite. This is not discussed, but it was bothersome when reading.
+
+It is conceivable that heapsort produces an infinite colist though, which is a fact mentioned at the beginning of Section 6.2 (634–636). Even for the ordinary heapsort, the fact that production always ends is just an additional property not relevant to the development of the algorithm, and I don’t see why its omission is bothersome. Can you please elaborate?
+
+> The invocation of ornamental algebras on pages 4--5 was somewhat mystifying. The connection between the datatypes that receive a universe coding in that paper and the AlgList and CoalgList datatypes in this paper is not immediately apparent.
+
+I don’t see why it is essential to explain in the paper the connection between the formalisation in McBride’s paper and the use of the technique. For this paper’s presentation, it suffices to understand why the index is the result of the fold.
+
+> Also, is AlgList short for "Algebra list" or "algorithm list"? Both "alg"-words occur in close proximity to the definition, and the paper isn't clear as to which is meant.
+
+In full it’s “algebraically ornamented list”. This is worth adding indeed.
+
+> The connection between the metamorphic heapsort and the jigsaw heapsort remained mysterious after reading the paper. There is no reason provided, other than a reference to Nakano's paper, to believe that this is heapsort. Why is it the case?
+
+The general relationship between metamorphisms and the jigsaw model is explained twice, in different ways, after the horizontal and vertical strategies are presented (762–773 and 906–920). I didn’t instantiate the explanations for heapsort, but I can easily do that in the revision.
+
+> In particular, the discussion of the jigsaw model's encoding becomes somewhat difficult to follow due to too much discussion of Agda's UI. Details about how to work with the interface are interleaved with a discussion of the high-level goal being worked on, and the context switching made it necessary to read the section twice, skipping the irrelevant parts each time.
+
+I am confused. Now the paper introduces the Agda UI while working on the simplest case in Section 4, where there is little algorithmic content, and the readers’ main job there is to familiarise themselves with the UI. By the time we reach Section 6 we have covered all of Agda’s UI, and we work almost exclusively at a high level in Section 6.
+
+> The invocation of the "inspect" idiom came as a surprise, and the conclusion admits that this was later inserted once the need for it became apparent rather than being presciently inserted during the original development of the program.
+
+Note that this surprising invocation was done only in Section 5. Section 4 introduced the `inspect` idiom only when needed.
+
+> Additionally, the inspect idiom is not particularly well-explained, and the discussion could use a sentence along the lines of "In each case, a proof is required that g s is equal to the appropriate pattern, but the with-rule operates by replacing the expression being examined everywhere. Matching on the result of inspect inserts the necessary equality proof into the pattern match."
+
+Actually explaining `with`-generalisation seems slightly too detailed to me. At this point, the high-level intention is merely obtaining the suitable equality proofs. But I’m fine with adding more explanations.
+
+> Alternatively, the paper could also pretend that Agda has syntax a la Idris's built-in support for "inspect"-like matching using the "proof" keyword after "with" in order to sidestep that discussion.
+
+I’m not too comfortable with this alternative, as I intend the development to be as close to the real thing as possible. (And `inspect` isn’t that distracting, is it..?)
+
+> it may have been easier to read the jigsaws if they were flipped so that information flowed left to right, similarly to in the text in the surrounding paper
+
+This direction is chosen to be the same as the computational direction of `foldr` (from right to left).
+
+> In the conclusion, "more sophisticated algorithmic problems" are referred to as potentially the boost that the paradigm of type-driven interactive development needs. What is the evidence that it needs a boost? Why should we expect this to be the case? If it's a throwaway remark, it'd be best to replace it or at least not have it as the last sentence. If not, a bit more explication and argument is necessary for it to make sense.
+
+You’re right — this requires more explanation. It’s supposed to echo the question asked in Section 1: “how well does interactive type-driven development scale?” Here the proposal is to think about scalability in the direction of algorithmic sophistication, as a departure from the well-understood examples such as bounds/dimensions and typed EDSLs.
+
+> Papers that make essential use of color [...]
+
+But this one doesn’t. Even if the coloured boxes are all printed grey, contextual type information (in subscript) will still be typographically distinguished from goals (with curly brackets and numbers).
+
+> On the first page, the parenthetical remark "is intrinsic hygienic guarantee" occurs. It's not clear what this means.
+
+Sorry, that is a part of the sentence “What has been more successful with dependently typed programming (DTP) is intrinsic hygienic guarantee”.
+
+> Agda is written in all caps throughout, for no clear reason. [...]
+
+It’s merely a stylistic choice. (McBride’s abstract for his ICFP’12 talk, for example, adopted exactly this style.)
+
+> The number of footnotes is a bit overwhelming. Can they be reduced, with the text either included in the main text if important or deleted if not?
+
+I believe these footnotes are important for people not familiar with Agda syntax, but distracting for Agda programmers who want to read about the metamorphism examples. Separating them seems to be the only way to satisfy both groups.
+
+> On page 23, when Goal 8 is solved, it looks like it's precisely the negation that was delayed for later. If it is, this should be pointed out, and if not, the difference should be highlighted. I was left wondering.
+
+Reviewer A has a related comment (“the flat? condition of Figure 5 is not exhaustive”).
+
+## Review C
+
+> CoalgListF [...]
+
+This alternative came to me when cleaning up the code, but was abandoned for precisely the reason you gave: “This approach starts to break down as the equations involved become more complex in the later sections”. In particular, it worked only for `cbp` but not `stream`, which definitely needed `inspect`, and I’d rather introduce `inspect` when still working on the simpler `cbp`.
+
+> This does make me question much is really gained by writing (sometimes quite complex) specifications in the types? [...]
+
+This is briefly discussed at the end of the paper (1193–1204), and is indeed one question I want to ask with the paper. Is the usual kind of lightweight stuff (bounds/dimensions and typed EDSLs) the limit of the intrinsic approach, or do we want to deal with something more complex, like algorithmic properties? I believe this is a question the DTP community should ask itself and try to answer. (For now, I can hardly convince myself that all the effort going into the theories and implementations is worthwhile if what we aim to do is merely on the scale of the common examples.)
+
+> The interactive development is not always quite as smooth as the paper presents -- and it would be worthwhile documenting how you can sometimes paint yourself into a corner. [...]
+
+This kind of situation is precisely what’s presented starting from line 1000, and discussed at 1199–1204.
+
+> The paper mentions several examples, such as the base conversion for fractions or heapsort, but none of these examples are implemented in Agda. [...]
+
+I gave relevant definitions at 157–158, 518–521, and 618–622, and showed how these definitions satisfy the derived streaming and jigsaw conditions (506–528 & 773–780), which I thought was enough. What’s left is the formal verification of the conditions; if you think this is essential, can you elaborate why?
+
+> 'full dependent types' (line 23) -- why not just 'dependent types'? Or are there 'half dependent types'?
+
+People talk about lightweight or restricted dependent types (like refinement types).
