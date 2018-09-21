@@ -45,11 +45,11 @@ mutual
   record CoalgList (B {S} : Set) (g : S → Maybe (B × S)) (s : S) : Set where
     coinductive
     field
-        decon : CoalgListF B g s
+        decon : CoalgListF B g (g s)
 
-  data CoalgListF (B {S} : Set) (g : S → Maybe (B × S)) : S → Set where
-    ⟨_⟩    : {s : S} → g s ≡ nothing → CoalgListF B g s
-    _∷⟨_⟩_ : (b : B) → {s s' : S} → g s ≡ just (b , s') → CoalgList B g s' → CoalgListF B g s
+  data CoalgListF (B {S} : Set) (g : S → Maybe (B × S)) : Maybe (B × S) → Set where
+    []  : CoalgListF B g nothing
+    _∷_ : (b : B) → {s' : S} → CoalgList B g s' → CoalgListF B g (just (b , s'))
 
 open CoalgList
 
@@ -68,9 +68,9 @@ module _ {A B S : Set} where
     where
 
     cbp : (s : S) → {h : S → S} → AlgList A (from-left-alg _▷_) id h → CoalgList B g (h s)
-    decon (cbp s []) with g s        | inspect g s
-    decon (cbp s []) | nothing       | [ eq ] = ⟨ eq ⟩
-    decon (cbp s []) | just (b , s') | [ eq ] = b ∷⟨ eq ⟩ cbp s' []
+    decon (cbp s []) with g s
+    decon (cbp s []) | nothing       = []
+    decon (cbp s []) | just (b , s') = b ∷ cbp s' []
     cbp s (a ∷ as) = cbp (s ▷ a) as
 
   module Streaming
@@ -79,16 +79,18 @@ module _ {A B S : Set} where
        {a : A} {b : B} {s s' : S} → g s ≡ just (b , s') → g (s ▷ a) ≡ just (b , s' ▷ a))
     where
 
-    streaming-lemma : {b : B} {s s' : S} {h : S → S} →
-                      AlgList A (from-left-alg _▷_) id h → g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
+    streaming-lemma : ∀ {s s' : S} {b} {h : S → S} →
+                      AlgList A (from-left-alg _▷_) id h →
+                      g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
     streaming-lemma []       eq = eq
     streaming-lemma (a ∷ as) eq = streaming-lemma as (streaming-condition eq)
 
-    stream : (s : S) → {h : S → S} → AlgList A (from-left-alg _▷_) id h → CoalgList B g (h s)
-    decon (stream s as      ) with g s        | inspect g s
-    decon (stream s []      ) | nothing       | [ eq ] = ⟨ eq ⟩
-    decon (stream s (a ∷ as)) | nothing       | [ eq ] = decon (stream (s ▷ a) as)
-    decon (stream s as      ) | just (b , s') | [ eq ] = b ∷⟨ streaming-lemma as eq ⟩ stream s' as
+    stream : (s : S) {h : S → S} → AlgList A (from-left-alg _▷_) id h → CoalgList B g (h s)
+    decon (stream s as      ) with g s | inspect g s
+    decon (stream s []      ) | nothing | [ eq ] rewrite eq = []
+    decon (stream s (a ∷ as)) | nothing | _  = decon (stream (s ▷ a) as)
+    decon (stream s as      ) | just (b , s') | [ eq ]
+      rewrite streaming-lemma as eq = b ∷ stream s' as
 
   cong-from-just : {X : Set} {x x' : X} → (Maybe X ∋ just x) ≡ just x' → x ≡ x'
   cong-from-just refl = refl
@@ -96,75 +98,65 @@ module _ {A B S : Set} where
   module Jigsaw-Infinite
     (_◁_ : A → S → S) (e : S) (g∞ : S → B × S)
     (piece : A × B → B × A)
-    (jigsaw-conditionᵢ : {a : A} {b : B} {s s' : S} →
-                         g∞ s ≡ (b , s') → let (b' , a') = piece (a , b) in g∞ (a ◁ s) ≡ (b' , a' ◁ s'))
+    (jigsaw-conditionᵢ : ∀ a s →
+                         let (b' , a') = piece (a , proj₁ (g∞ s))
+                         in g∞ (a ◁ s) ≡ (b' , a' ◁ proj₂ (g∞ s)))
     (straight : B) (straight-production : g∞ e ≡ (straight , e))
     where
 
-    fillᵢₕ : {s : S} → AlgList A _◁_ e s → Σ[ b ∈ B ] Σ[ t ∈ S ] AlgList A _◁_ e t × (g∞ s ≡ (b , t))
-    fillᵢₕ []       = straight , _ , [] , straight-production
-    fillᵢₕ (a ∷ as) with fillᵢₕ as
-    fillᵢₕ (a ∷ as) | b , _ , as' , eq = let (b' , a') = piece (a , b)
-                                         in  b' , _ , a' ∷ as' , jigsaw-conditionᵢ eq
+    fillᵢₕ : {s : S} → AlgList A _◁_ e s → AlgList A _◁_ e (proj₂ (g∞ s))
+    fillᵢₕ []             rewrite straight-production   = []
+    fillᵢₕ (_∷_ a {s} as) rewrite jigsaw-conditionᵢ a s = _ ∷ fillᵢₕ as
 
     jigsawᵢₕ : {s : S} → AlgList A _◁_ e s → CoalgList B (just ∘ g∞) s
     decon (jigsawᵢₕ as) with fillᵢₕ as
-    decon (jigsawᵢₕ as) | b , _ , as' , eq = b ∷⟨ cong just eq ⟩ jigsawᵢₕ as'
-   
-    fillᵢᵥ : {s : S} (a : A) → CoalgList B (just ∘ g∞) s → CoalgList B (just ∘ g∞) (a ◁ s)  
-    decon (fillᵢᵥ a bs) with decon bs
-    decon (fillᵢᵥ a bs) | ⟨ () ⟩
-    decon (fillᵢᵥ a bs) | b ∷⟨ eq ⟩ bs' =
-      let (b' , a') = piece (a , b)
-      in  b' ∷⟨ cong just (jigsaw-conditionᵢ (cong-from-just eq)) ⟩ fillᵢᵥ a' bs'
+    decon (jigsawᵢₕ as) | as' = _ ∷ jigsawᵢₕ as'
 
-    jigsawᵢᵥ : {s : S} → AlgList A _◁_ e s → CoalgList B (just ∘ g∞) s
-    decon (jigsawᵢᵥ []) = straight ∷⟨ cong just straight-production ⟩ jigsawᵢᵥ []
-    jigsawᵢᵥ (a ∷ as) = fillᵢᵥ a (jigsawᵢᵥ as)
+    fillᵢᵥ : {s : S} (a : A) → CoalgList B (just ∘ g∞) s → CoalgList B (just ∘ g∞) (a ◁ s)
+    decon (fillᵢᵥ a bs) with decon bs
+    decon (fillᵢᵥ {s} a bs) | b ∷ bs'
+      rewrite jigsaw-conditionᵢ a s = _ ∷ fillᵢᵥ _ bs'
+
+  _<∣>_ : ∀ {a} {A : Set a} → Maybe A → Maybe A → Maybe A
+  ma@(just _) <∣> _  = ma
+  nothing     <∣> ma = ma
 
   module Jigsaw-General
     (_◁_ : A → S → S) (e : S) (g : S → Maybe (B × S))
     (nothing-from-e : g e ≡ nothing)
     (piece : A × B → B × A)
-    (flat? : (a : A) → ({s : S} → g s ≡ nothing → g (a ◁ s) ≡ nothing) ⊎
-                       ({s : S} → g (a ◁ s) ≢ nothing))
+    (flat? : ∀ a s → (g s ≡ nothing → g (a ◁ s) ≡ nothing) ⊎
+                     (Is-just (g (a ◁ s))))
     (straight : B)
     (jigsaw-condition :
-       {a : A} {b : B} {s s' : S} →
-       g s ≡ just (b , s') ⊎ (g s ≡ nothing × g (a ◁ s) ≢ nothing × b ≡ straight × s' ≡ s) →
+       ∀ a s → Is-just (g s <∣> g (a ◁ s)) → let (b , s') = fromMaybe (straight , s) (g s) in -- g s ≡ just (b , s') ⊎ (g s ≡ nothing × g (a ◁ s) ≢ nothing × b ≡ straight × s' ≡ s) →
        let (b' , a') = piece (a , b) in g (a ◁ s) ≡ just (b' , a' ◁ s'))
     where
 
     fill : {s : S} (a : A) → CoalgList B g s → CoalgList B g (a ◁ s)
-    decon (fill a bs) with decon bs
-    decon (fill a bs) | ⟨ eq ⟩ with flat? a 
-    decon (fill a bs) | ⟨ eq ⟩ | inj₁ flat     = ⟨ flat eq ⟩
-    decon (fill a bs) | ⟨ eq ⟩ | inj₂ not-flat =
-      let (b' , a') = piece (a , straight)
-      in  b' ∷⟨ jigsaw-condition (inj₂ (eq , not-flat , refl , refl)) ⟩ fill a' bs
-    decon (fill a bs) | b ∷⟨ eq ⟩ bs' =
-      let (b' , a') = piece (a , b)
-      in  b' ∷⟨ jigsaw-condition (inj₁ eq) ⟩ fill a' bs'
+    decon (fill {s} a bs) with g s | g (a ◁ s) | jigsaw-condition a s | flat? a s | decon bs
+    ... | _ | _ | jg-c | inj₁ flat  | []      rewrite flat refl     = []
+    ... | _ | _ | jg-c | inj₂ ¬flat | []      rewrite jg-c ¬flat    = _ ∷ fill _ bs
+    ... | _ | _ | jg-c | fla?       | b ∷ bs' rewrite jg-c (just _) = _ ∷ fill _ bs'
 
     jigsaw : {s : S} → AlgList A _◁_ e s → CoalgList B g s
-    decon (jigsaw []) = ⟨ nothing-from-e ⟩
-    jigsaw (a ∷ as) = fill a (jigsaw as)
+    decon (jigsaw []) rewrite nothing-from-e = []
+    decon (jigsaw (a ∷ as)) = fill a (jigsaw as) .decon
 
   module Jigsaw-Left-Infinite
     (_▷_ : S → A → S) (g : S → B × S)
     (piece : B × A → A × B)
-    (jigsaw-condition : {a : A} {b : B} {s s' : S} →
-                        g s ≡ (b , s') → let (a' , b') = piece (b , a) in  g (s ▷ a) ≡ (b' , s' ▷ a'))
+    (jigsaw-condition : ∀ a s → let (a' , b') = piece (proj₁ (g s) , a) in
+                        g (s ▷ a) ≡ (b' , proj₂ (g s) ▷ a'))
     where
 
     fillₗᵢ : {s : S} → CoalgList B (just ∘ g) s → (a : A) → CoalgList B (just ∘ g) (s ▷ a)
     decon (fillₗᵢ bs a) with decon bs
-    decon (fillₗᵢ bs a) | ⟨ () ⟩
-    decon (fillₗᵢ bs a) | b ∷⟨ eq ⟩ bs' =
-      let (a' , b') = piece (b , a)
-      in  b' ∷⟨ cong just (jigsaw-condition (cong-from-just eq)) ⟩ fillₗᵢ bs' a'
+    decon (fillₗᵢ {s} bs a) | b ∷ bs'
+      rewrite jigsaw-condition a s = _ ∷ fillₗᵢ bs' _
 
     jigsawₗᵢ : {s : S} → CoalgList B (just ∘ g) s →
-              {h : S → S} → AlgList A (from-left-alg _▷_) id h → CoalgList B (just ∘ g) (h s)
+               {h : S → S} → AlgList A (from-left-alg _▷_) id h →
+               CoalgList B (just ∘ g) (h s)
     jigsawₗᵢ bs []       = bs
     jigsawₗᵢ bs (a ∷ as) = jigsawₗᵢ (fillₗᵢ bs a) as
