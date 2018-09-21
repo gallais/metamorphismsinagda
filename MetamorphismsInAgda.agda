@@ -79,21 +79,19 @@ module _ {A B S : Set} where
        {a : A} {b : B} {s s' : S} → g s ≡ just (b , s') → g (s ▷ a) ≡ just (b , s' ▷ a))
     where
 
-    streaming-lemma : ∀ {s s' : S} {b} {h : S → S} →
+    streaming-lemma : ∀ s {h : S → S} →
                       AlgList A (from-left-alg _▷_) id h →
-                      g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
-    streaming-lemma []       eq = eq
-    streaming-lemma (a ∷ as) eq = streaming-lemma as (streaming-condition eq)
+                      ∀ b s' → g s ≡ just (b , s') → g (h s) ≡ just (b , h s')
+    streaming-lemma _ []       _ _ eq = eq
+    streaming-lemma _ (a ∷ as) _ _ eq = streaming-lemma _ as _ _ (streaming-condition eq)
 
     stream : (s : S) {h : S → S} → AlgList A (from-left-alg _▷_) id h → CoalgList B g (h s)
-    decon (stream s as      ) with g s | inspect g s
-    decon (stream s []      ) | nothing | [ eq ] rewrite eq = []
-    decon (stream s (a ∷ as)) | nothing | _  = decon (stream (s ▷ a) as)
-    decon (stream s as      ) | just (b , s') | [ eq ]
-      rewrite streaming-lemma as eq = b ∷ stream s' as
-
-  cong-from-just : {X : Set} {x x' : X} → (Maybe X ∋ just x) ≡ just x' → x ≡ x'
-  cong-from-just refl = refl
+    decon (stream s []) with g s
+    ... | just (b , s') = b ∷ stream s' []
+    ... | nothing       = []
+    decon (stream s (a ∷ as)) with g s | streaming-lemma s (a ∷ as)
+    ... | just (b , s') | eq rewrite eq b s' refl = _ ∷ stream s' (a ∷ as)
+    ... | nothing       | _  = decon (stream (s ▷ a) as)
 
   module Jigsaw-Infinite
     (_◁_ : A → S → S) (e : S) (g∞ : S → B × S)
